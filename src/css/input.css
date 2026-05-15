@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'DM Sans', sans-serif;
+  }
+  h1, h2, h3 {
+    font-family: 'Fraunces', serif;
+  }
+}
+
+@layer components {
+
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-800 transition duration-200;
+  }
+  .btn-secondary {
+    @apply bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition duration-200;
+  }
+
+  /* ── Inputs ── */
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500;
+  }
+
+  /* ── Card ── */
+  .card {
+    @apply bg-white rounded-lg shadow-md p-6;
+  }
+
+  /* ══════════════════════════════════════════
+     DAIRYSYNC — Glassmorphic Design System
+  ══════════════════════════════════════════ */
+
+  /* Page background: deep green dot-grid */
+  .ds-page {
+    @apply min-h-screen flex items-center justify-center px-4 py-10;
+    background: radial-gradient(ellipse at 65% 10%, #166534 0%, #052e16 55%, #0a1f0f 100%);
+    background-attachment: fixed;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Subtle dot texture overlay */
+  .ds-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(74, 222, 128, 0.15) 1px, transparent 1px);
+    background-size: 26px 26px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow top-right */
+  .ds-page::after {
+    content: '';
+    position: fixed;
+    width: 560px;
+    height: 560px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.18) 0%, transparent 70%);
+    top: -140px;
+    right: -140px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow bottom-left */
+  .ds-orb {
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(20, 83, 45, 0.32) 0%, transparent 70%);
+    bottom: -100px;
+    left: -100px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glass card */
+  .ds-card {
+    @apply relative z-10 w-full rounded-3xl p-10;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8px 48px rgba(5, 46, 22, 0.22), 0 2px 10px rgba(5, 46, 22, 0.10);
+    backdrop-filter: blur(28px) saturate(1.7);
+    -webkit-backdrop-filter: blur(28px) saturate(1.7);
+    animation: ds-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Logo icon circle */
+  .ds-logo-icon {
+    @apply flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-3;
+    background: linear-gradient(135deg, #15803d, #22c55e);
+    box-shadow: 0 4px 22px rgba(22, 163, 74, 0.40), inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+
+  /* Glass input */
+  .ds-input {
+    @apply w-full px-4 py-3 rounded-xl text-sm text-emerald-950 placeholder-emerald-400 
+           outline-none transition-all duration-200;
+    background: rgba(240, 253, 244, 0.60);
+    border: 1.5px solid rgba(134, 239, 172, 0.45);
+  }
+  .ds-input:focus {
+    background: rgba(240, 253, 244, 0.85);
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+  }
+
+  /* Select dropdown */
+  .ds-select {
+    @apply w-full px-4 py-3 rounded-xl text-sm text-emerald-950 outline-none 
+           transition-all duration-200 appearance-none cursor-pointer;
+    background: rgba(240, 253, 244, 0.60);
+    border: 1.5px solid rgba(134, 239, 172, 0.45);
+  }
+  .ds-select:focus {
+    background: rgba(240, 253, 244, 0.85);
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+  }
+
+  /* Label */
+  .ds-label {
+    @apply block text-xs font-semibold tracking-wide uppercase text-emerald-800 mb-1.5;
+  }
+
+  /* Primary CTA button */
+  .ds-btn {
+    @apply w-full py-3.5 rounded-xl text-sm font-semibold text-white tracking-wide
+           transition-all duration-200 flex items-center justify-center gap-2;
+    background: linear-gradient(135deg, #15803d, #16a34a);
+    box-shadow: 0 4px 18px rgba(22, 163, 74, 0.38), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .ds-btn:hover {
+    background: linear-gradient(135deg, #166534, #15803d);
+    box-shadow: 0 6px 24px rgba(22, 163, 74, 0.50), inset 0 1px 0 rgba(255,255,255,0.15);
+    transform: translateY(-1px);
+  }
+  .ds-btn:active {
+    transform: translateY(0);
+  }
+
+  /* Step pill (for multi-step flows) */
+  .ds-step-pill {
+    @apply flex items-center gap-2 text-xs font-semibold tracking-widest uppercase
+           px-4 py-1.5 rounded-full border;
+    color: #15803d;
+    background: rgba(220, 252, 231, 0.65);
+    border-color: rgba(134, 239, 172, 0.50);
+  }
+
+  /* Divider */
+  .ds-divider {
+    @apply border-t my-6;
+    border-color: rgba(134, 239, 172, 0.35);
+  }
+
+  /* Alert — success */
+  .ds-alert-success {
+    @apply flex items-start gap-3 p-4 rounded-xl text-sm text-emerald-900 mb-5;
+    background: rgba(187, 247, 208, 0.65);
+    border: 1px solid rgba(74, 222, 128, 0.45);
+  }
+
+  /* Alert — error */
+  .ds-alert-error {
+    @apply flex items-start gap-3 p-4 rounded-xl text-sm text-red-800 mb-5;
+    background: rgba(254, 202, 202, 0.65);
+    border: 1px solid rgba(252, 165, 165, 0.45);
+  }
+
+  /* Slide-up animation */
+  @keyframes ds-rise {
+    from { opacity: 0; transform: translateY(28px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);    }
+  }
+}

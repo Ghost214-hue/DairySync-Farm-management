@@ -1,0 +1,4 @@
+# Exclude sensitive config files
+secret.enc
+*.log
+*.sql

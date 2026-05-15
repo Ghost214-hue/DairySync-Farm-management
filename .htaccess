@@ -1,0 +1,13 @@
+Options -Indexes
+RewriteEngine On
+RewriteBase /farm-management/
+
+# Handle root
+RewriteRule ^$ index.php [L]
+
+# Don't rewrite actual files or directories
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rewrite encoded routes
+RewriteRule ^([a-zA-Z0-9_\-]+)$ router/router.php/$1 [L,QSA]

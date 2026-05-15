@@ -1,0 +1,59 @@
+# Sensitive configuration files
+config/secret.enc
+config/env.local.php
+config/*.enc
+*.enc
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+error_log
+access_log
+
+# Database files
+*.sql
+*.db
+*.sqlite
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+.project
+.classpath
+
+# OS files
+.DS_Store
+Thumbs.db
+.desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Session files
+sessions/
+temp/
+
+# Composer
+composer.phar
+vendor/
+
+# Node modules (if any)
+node_modules/
+
+# Build files
+dist/
+build/
+
+# Test files
+test/
+tests/
+
+# Documentation (if generating)
+docs/_build/

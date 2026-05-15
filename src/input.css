@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .glass-card {
+    @apply bg-white/30 backdrop-blur-md rounded-2xl border border-white/30 shadow-xl;
+  }
+  
+  .glass-input {
+    @apply w-full px-4 py-2 bg-white/90 backdrop-blur-sm border border-farm-green-300 rounded-lg 
+           focus:outline-none focus:ring-2 focus:ring-farm-green-500 focus:border-transparent
+           transition-all duration-300;
+  }
+  
+  .glass-label {
+    @apply block text-farm-green-800 text-sm font-bold mb-2;
+  }
+  
+  .farm-button {
+    @apply w-full bg-gradient-to-r from-farm-green-600 to-farm-green-700 text-white 
+           px-4 py-3 rounded-lg hover:from-farm-green-700 hover:to-farm-green-800 
+           font-semibold transition-all duration-300 transform hover:scale-[1.02];
+  }
+  
+  .farm-icon {
+    @apply inline-block p-3 bg-gradient-to-r from-farm-green-600 to-farm-green-700 
+           rounded-full shadow-lg mb-4;
+  }
+}
+  .stat-number {
+    @apply text-6xl font-black bg-gradient-to-r from-farm-green-600 to-farm-olive-600 bg-clip-text text-transparent;
+  }
+
+  .empty-state-button {
+    @apply mt-3 inline-flex items-center gap-2 text-sm font-medium text-farm-green-600 hover:text-farm-green-800 transition-colors;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  }

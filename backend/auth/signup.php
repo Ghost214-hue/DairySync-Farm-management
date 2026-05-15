@@ -1,0 +1,147 @@
+<?php
+// Buffer ALL output so header() can still fire even after HTML starts rendering
+ob_start();
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Generate CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Initialize variables
+$message = '';
+$message_type = '';
+
+// Only process POST requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // Validate CSRF token
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+        $message = 'Invalid request. Please try again.';
+        $message_type = 'error';
+    } else {
+
+        // Include database configuration
+        require_once __DIR__ . '/../config/database.php';
+
+        // Get database connection
+        $conn = getDatabase();
+
+        // Get and sanitize input data
+        $username            = sanitizeInput($_POST['username'] ?? '');
+        $email               = sanitizeInput($_POST['email'] ?? '');
+        $password            = $_POST['password'] ?? '';
+        $phone               = sanitizeInput($_POST['phone'] ?? '');
+        $farm_name           = sanitizeInput($_POST['farm_name'] ?? '');
+        $location            = sanitizeInput($_POST['location'] ?? '');
+        $registration_number = sanitizeInput($_POST['registration_number'] ?? '');
+
+        // Validate required fields
+        if (empty($username) || empty($email) || empty($password) || empty($farm_name) || empty($location) || empty($registration_number)) {
+            $message      = 'All required fields must be filled';
+            $message_type = 'error';
+        }
+        // Validate email
+        elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $message      = 'Invalid email format';
+            $message_type = 'error';
+        }
+        // Validate password length
+        elseif (strlen($password) < 6) {
+            $message      = 'Password must be at least 6 characters';
+            $message_type = 'error';
+        } else {
+            // Check if username or email already exists
+            $check_user = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+            $check_user->bind_param("ss", $username, $email);
+            $check_user->execute();
+            $check_user->store_result();
+
+            if ($check_user->num_rows > 0) {
+                $message      = 'Username or email already exists';
+                $message_type = 'error';
+                $check_user->close();
+            } else {
+                $check_user->close();
+
+                // Check if farm registration number already exists
+                $check_farm = $conn->prepare("SELECT id FROM farms WHERE registration_number = ?");
+                $check_farm->bind_param("s", $registration_number);
+                $check_farm->execute();
+                $check_farm->store_result();
+
+                if ($check_farm->num_rows > 0) {
+                    $message      = 'Farm registration number already exists';
+                    $message_type = 'error';
+                    $check_farm->close();
+                } else {
+                    $check_farm->close();
+
+                // Check if this email is already registered for this farm
+                $check_farm_email = $conn->prepare("SELECT u.id FROM users u JOIN farms f ON u.id = f.user_id WHERE f.registration_number = ? AND u.email != ?");
+                $check_farm_email->bind_param("ss", $registration_number, $email);
+                $check_farm_email->execute();
+                $check_farm_email->store_result();
+
+                if ($check_farm_email->num_rows > 0) {
+                    $message      = 'This farm is already registered with another email';
+                    $message_type = 'error';
+                    $check_farm_email->close();
+                } else {
+                    $check_farm_email->close();
+
+                    // Hash password
+                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+                    // Start transaction
+                    $conn->begin_transaction();
+
+                    try {
+                        // Insert user
+                        $insert_user = $conn->prepare("INSERT INTO users (username, email, password, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
+                        $insert_user->bind_param("ssss", $username, $email, $hashed_password, $phone);
+
+                        if (!$insert_user->execute()) {
+                            throw new Exception("Failed to create user account");
+                        }
+
+                        $user_id = $conn->insert_id;
+                        $insert_user->close();
+
+                        // Insert farm
+                        $insert_farm = $conn->prepare("INSERT INTO farms (user_id, farm_name, location, registration_number, created_at) VALUES (?, ?, ?, ?, NOW())");
+                        $insert_farm->bind_param("isss", $user_id, $farm_name, $location, $registration_number);
+
+                        if (!$insert_farm->execute()) {
+                            throw new Exception("Failed to create farm");
+                        }
+
+                        $insert_farm->close();
+
+                        // Commit transaction
+                        $conn->commit();
+
+                        // Regenerate CSRF token after successful registration
+                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+                        require_once __DIR__ . '/../../router/urlHelper.php';
+                        UrlHelper::redirect('signin', ['registered' => 1]);
+                        exit();
+
+                    } catch (Exception $e) {
+                        // Rollback transaction on error
+                        $conn->rollback();
+                        $message      = 'Registration failed: ' . $e->getMessage();
+                        $message_type = 'error';
+                    }
+                }
+            }
+        }
+        }
+
+        $conn->close();
+    }
+}
