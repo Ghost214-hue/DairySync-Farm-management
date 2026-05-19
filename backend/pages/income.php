@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if ($new_price > 0) {
         $settings->setMilkPrice($new_price);
         $_SESSION['income_success'] = "Milk price updated to KSh " . number_format($new_price, 2);
-        $default_milk_price = $new_price; // refresh for this request
+        $default_milk_price = $new_price;
     } else {
         $_SESSION['income_error'] = "Invalid price value.";
     }
@@ -65,6 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
             $total_amount = $litres * $rate_per_litre;
+            // NRM is 0 for manual milk sales (should only come from milk production)
+            $nrm_value = 0;
         } else {
             if ($total_amount <= 0) {
                 $_SESSION['income_error'] = "Please enter a valid total amount.";
@@ -73,12 +75,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $litres = 0;
             $rate_per_litre = 0;
+            $nrm_value = 0;
         }
 
-        $insert_income = "INSERT INTO income (user_id, farm_id, source, litres, rate_per_litre, total_amount, income_date)
-                          VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $insert_income = "INSERT INTO income (user_id, farm_id, source, litres, rate_per_litre, total_amount, nrm_value, income_date)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($insert_income);
-        $stmt->bind_param("iisddds", $user_id, $farm_id, $source, $litres, $rate_per_litre, $total_amount, $income_date);
+        $stmt->bind_param("iisdddd", $user_id, $farm_id, $source, $litres, $rate_per_litre, $total_amount, $nrm_value, $income_date);
         if ($stmt->execute()) {
             $_SESSION['income_success'] = "Income added successfully.";
         } else {
@@ -185,6 +188,15 @@ $total_expenses = (float)($stmt->get_result()->fetch_assoc()['total'] ?? 0);
 $stmt->close();
 
 $net_profit = $total_income - $total_expenses;
+
+// Total Non-Revenue Milk Value (from Milk Sales only)
+$total_nrm = 0;
+$nrm_query = "SELECT SUM(nrm_value) as total_nrm FROM income WHERE user_id = ? AND source = 'Milk Sales'";
+$stmt = $conn->prepare($nrm_query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$total_nrm = (float)($stmt->get_result()->fetch_assoc()['total_nrm'] ?? 0);
+$stmt->close();
 
 $conn->close();
 ?>

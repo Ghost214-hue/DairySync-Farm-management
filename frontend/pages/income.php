@@ -32,13 +32,21 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
     <?php renderSidebar(); ?>
 
     <main class="flex-1 p-7">
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-8">
+        <!-- Header with milk price badge -->
+        <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
             <div>
                 <h1 class="text-4xl font-bold text-slate-800">Finance Overview</h1>
                 <p class="text-slate-500 mt-2">Track income, expenses and profitability</p>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-3 items-center">
+                <!-- Current milk price badge + edit button -->
+                <div class="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 border border-slate-200 flex items-center gap-2 shadow-sm">
+                    <span class="text-sm text-slate-600">Milk price:</span>
+                    <span class="font-bold text-emerald-700">KSh <?= number_format($default_milk_price, 2) ?></span>
+                    <button onclick="openPriceModal()" class="text-slate-400 hover:text-emerald-600 transition">
+                        <i class="fas fa-pen fa-xs"></i>
+                    </button>
+                </div>
                 <button onclick="openIncomeModal()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-3 rounded-2xl font-semibold shadow-sm transition">
                     <i class="fas fa-plus mr-2"></i> Add Income
                 </button>
@@ -48,8 +56,9 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
             </div>
         </div>
 
-        <!-- Combined Summary Cards (now 4 cards including price editor) -->
+        <!-- Combined Summary Cards (4 cards) -->
         <div class="grid md:grid-cols-4 gap-6 mb-8">
+            <!-- Total Income -->
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
                 <div class="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center mb-5">
                     <i class="fas fa-coins text-emerald-700 text-xl"></i>
@@ -57,6 +66,7 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
                 <h2 class="text-4xl font-bold text-slate-800">KSh <?= number_format($total_income) ?></h2>
                 <p class="text-slate-500 mt-2">Total Income</p>
             </div>
+            <!-- Total Expenses -->
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
                 <div class="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center mb-5">
                     <i class="fas fa-receipt text-red-600 text-xl"></i>
@@ -64,6 +74,7 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
                 <h2 class="text-4xl font-bold text-slate-800">KSh <?= number_format($total_expenses) ?></h2>
                 <p class="text-slate-500 mt-2">Total Expenses</p>
             </div>
+            <!-- Net Profit -->
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
                 <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mb-5">
                     <i class="fas fa-chart-line text-green-700 text-xl"></i>
@@ -73,28 +84,14 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
                 </h2>
                 <p class="text-slate-500 mt-2">Net Profit</p>
             </div>
-            <!-- Milk Price Editor Card -->
+            <!-- Non-Revenue Milk Value (from Milk Sales only) -->
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-slate-500 mb-1">Current Milk Price</p>
-                        <form method="POST" class="flex items-center gap-2">
-                            <input type="hidden" name="action" value="update_milk_price">
-                            <div class="flex items-center bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                                <span class="px-3 text-slate-600 font-medium">KSh</span>
-                                <input type="number" step="0.01" name="milk_price" value="<?= number_format($default_milk_price, 2) ?>" 
-                                       class="w-28 py-2 px-2 border-0 focus:ring-0 text-right font-semibold">
-                            </div>
-                            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-sm">
-                                <i class="fas fa-save"></i>
-                            </button>
-                        </form>
-                        <p class="text-xs text-slate-400 mt-2">per litre – applies to new milk sales</p>
-                    </div>
-                    <div class="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center">
-                        <i class="fas fa-tag text-amber-600 text-xl"></i>
-                    </div>
+                <div class="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center mb-5">
+                    <i class="fas fa-exclamation-triangle text-amber-600 text-xl"></i>
                 </div>
+                <h2 class="text-4xl font-bold text-amber-600">KSh <?= number_format($total_nrm) ?></h2>
+                <p class="text-slate-500 mt-2">Non‑Revenue Milk</p>
+                <p class="text-xs text-slate-400 mt-1">Unsold milk value (Milk Sales only)</p>
             </div>
         </div>
 
@@ -114,11 +111,12 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
                                 <th class="px-6 py-4">Litres</th>
                                 <th class="px-6 py-4">Rate</th>
                                 <th class="px-6 py-4">Amount</th>
-                             </tr>
+                                <th class="px-6 py-4">NRM Amount</th>
+                            </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($income_records)): ?>
-                                <tr><td colspan="5" class="py-20 text-center text-slate-400">No income records yet.</td></tr>
+                                <tr><td colspan="6" class="py-20 text-center text-slate-400">No income records yet.</td></tr>
                             <?php else: ?>
                                 <?php foreach ($income_records as $inc): ?>
                                     <tr class="border-t hover:bg-slate-50 transition">
@@ -127,6 +125,7 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
                                         <td class="px-6 py-4"><?= $inc['litres'] ? number_format($inc['litres'], 1) : '-' ?></td>
                                         <td class="px-6 py-4"><?= $inc['rate_per_litre'] ? 'KSh '.number_format($inc['rate_per_litre'], 2) : '-' ?></td>
                                         <td class="px-6 py-4 font-bold text-emerald-700">KSh <?= number_format($inc['total_amount']) ?></td>
+                                        <td class="px-6 py-4 text-amber-600"><?= $inc['nrm_value'] ? 'KSh '.number_format($inc['nrm_value']) : '-' ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -282,16 +281,35 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
     </div>
 </div>
 
+<!-- MODAL: Edit Milk Price -->
+<div id="priceModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-7">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-slate-800">Edit Milk Price</h2>
+            <button onclick="closePriceModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form method="POST" action="">
+            <input type="hidden" name="action" value="update_milk_price">
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Price per Litre (KSh)</label>
+                <input type="number" step="0.01" name="milk_price" value="<?= number_format($default_milk_price, 2) ?>" class="w-full border border-slate-200 rounded-xl px-4 py-3" required>
+            </div>
+            <button type="submit" class="mt-5 w-full bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-3 rounded-2xl transition">Save Price</button>
+        </form>
+    </div>
+</div>
+
 <script>
     function openIncomeModal() { document.getElementById('incomeModal').classList.remove('hidden'); document.getElementById('incomeModal').classList.add('flex'); }
     function closeIncomeModal() { document.getElementById('incomeModal').classList.add('hidden'); document.getElementById('incomeModal').classList.remove('flex'); }
     function openExpenseModal() { document.getElementById('expenseModal').classList.remove('hidden'); document.getElementById('expenseModal').classList.add('flex'); }
     function closeExpenseModal() { document.getElementById('expenseModal').classList.add('hidden'); document.getElementById('expenseModal').classList.remove('flex'); }
+    function openPriceModal() { document.getElementById('priceModal').classList.remove('hidden'); document.getElementById('priceModal').classList.add('flex'); }
+    function closePriceModal() { document.getElementById('priceModal').classList.add('hidden'); document.getElementById('priceModal').classList.remove('flex'); }
 
     const modalSource = document.getElementById('modalIncomeSource');
     const modalMilkFields = document.getElementById('modalMilkFields');
     const modalManualField = document.getElementById('modalManualAmountField');
-
     function toggleModalIncomeFields() {
         if (modalSource.value === 'Milk Sales') {
             modalMilkFields.style.display = 'block';
@@ -307,6 +325,7 @@ unset($_SESSION['income_success'], $_SESSION['income_error'], $_SESSION['expense
     window.onclick = function(event) {
         if (event.target === document.getElementById('incomeModal')) closeIncomeModal();
         if (event.target === document.getElementById('expenseModal')) closeExpenseModal();
+        if (event.target === document.getElementById('priceModal')) closePriceModal();
     }
 </script>
 </body>

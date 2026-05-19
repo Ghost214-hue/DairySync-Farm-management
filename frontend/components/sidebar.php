@@ -139,6 +139,15 @@ function renderSidebar() {
                 </svg>
                 <span>Reports</span>
             </a>
+            <a href="<?= UrlHelper::url('settings') ?>" class="<?= $nav_class('settings') ?>">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                          d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                          d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                </svg>
+                <span>Settings</span>
+            </a>
             <a href="<?= UrlHelper::url('logout') ?>" class="<?= $nav_class('logout') ?>">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
