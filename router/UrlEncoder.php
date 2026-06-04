@@ -7,30 +7,34 @@ class UrlEncoder {
     private static $config_loaded = false;
 
     private static $decode_map = [
-        // Auth
-        'a7k9m2x4' => 'signup',
-        'h3j5n8q1' => 'signin',
-        'q1a4z7w3' => 'logout',
+    // Auth
+    'a7k9m2x4' => 'signup',
+    'h3j5n8q1' => 'signin',
+    'q1a4z7w3' => 'logout',
 
-        // Onboarding
-        'f3d8r1k5' => 'register_farm',
+    // Onboarding
+    'f3d8r1k5' => 'register_farm',
 
-        // Main app
-        'r2t6y9u3' => 'dashboard',
-        'v4b7n1m8' => 'cows',
-        'w5c8p2k9' => 'health',
-        'e6r9t2y5' => 'milk_production',
-        'k4f7d2m9' => 'feeds', 
-        'b1m5q8c3' => 'income',
-        'l7s0x2p4' => 'reports',
+    // Main app
+    'r2t6y9u3' => 'dashboard',
+    'v4b7n1m8' => 'cows',
+    'w5c8p2k9' => 'health',
+    'e6r9t2y5' => 'milk_production',
+    'k4f7d2m9' => 'feeds', 
+    'b1m5q8c3' => 'income',
+    'l7s0x2p4' => 'reports',
 
-      
-        'u8i1o4p7' => 'settings',
+    // Report pages (new)
+    'd4k9m2x8' => 'milk_report',
+    'p7l3n6w1' => 'income_report',
 
-        // API (legacy)
-        'x9z3m7k1' => 'api_signup',
-        'y4w8n2p6' => 'api_signin',
-    ];
+    // Account
+    'u8i1o4p7' => 'settings',
+
+    // API (legacy)
+    'x9z3m7k1' => 'api_signup',
+    'y4w8n2p6' => 'api_signin',
+];
 
     private static function loadSecretKey(): void {
         if (self::$config_loaded) return;

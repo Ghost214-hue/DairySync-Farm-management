@@ -27,11 +27,12 @@ unset($_SESSION['milk_error']);
     <?php renderSidebar(); ?>
 
     <main class="flex-1 p-7">
-        <!-- Header with price edit icon -->
+
+        <!-- Header -->
         <div class="flex items-center justify-between mb-8">
             <div>
                 <h1 class="text-4xl font-bold text-slate-800">Milk Production</h1>
-                <p class="text-slate-500 mt-2">Track daily milk per cow – morning, evening, sold, and non‑revenue milk.</p>
+                <p class="text-slate-500 mt-2">Track daily milk per cow – morning and evening production.</p>
             </div>
             <div class="flex gap-3 items-center">
                 <!-- Current milk price badge + edit button -->
@@ -42,7 +43,7 @@ unset($_SESSION['milk_error']);
                         <i class="fas fa-pen fa-xs"></i>
                     </button>
                 </div>
-                <button onclick="openModal(null, null, null, null, null, null, null)" 
+                <button onclick="openModal(null, null, null, null, null, null)"
                         class="bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-3 rounded-2xl font-semibold shadow-sm transition">
                     <i class="fas fa-plus mr-2"></i> Add / Edit Record
                 </button>
@@ -51,14 +52,19 @@ unset($_SESSION['milk_error']);
 
         <!-- Alerts -->
         <?php if ($success): ?>
-            <div class="mb-5 bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-xl"><?= htmlspecialchars($success) ?></div>
+            <div class="mb-5 bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+                <?= htmlspecialchars($success) ?>
+            </div>
         <?php endif; ?>
         <?php if ($error): ?>
-            <div class="mb-5 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-xl"><?= htmlspecialchars($error) ?></div>
+            <div class="mb-5 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                <?= htmlspecialchars($error) ?>
+            </div>
         <?php endif; ?>
 
         <!-- Stats Row (3 cards) -->
         <div class="grid md:grid-cols-3 gap-6 mb-7">
+
             <!-- Today's Milk -->
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
                 <div class="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center mb-5">
@@ -68,6 +74,7 @@ unset($_SESSION['milk_error']);
                 <p class="text-slate-500 mt-2">Today's Total Production</p>
                 <span class="bg-green-100 text-green-700 text-sm px-3 py-1 rounded-full font-medium inline-block mt-2">Today</span>
             </div>
+
             <!-- Total Records -->
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
                 <div class="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center mb-5">
@@ -76,6 +83,7 @@ unset($_SESSION['milk_error']);
                 <h2 class="text-5xl font-bold text-slate-800"><?= $total_records ?></h2>
                 <p class="text-slate-500 mt-2">Total Records</p>
             </div>
+
             <!-- Non-Revenue Milk Value Card -->
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
                 <div class="flex items-center justify-between">
@@ -91,9 +99,10 @@ unset($_SESSION['milk_error']);
                     </div>
                 </div>
             </div>
+
         </div>
 
-        <!-- Milk Records Table (unchanged) -->
+        <!-- Milk Records Table -->
         <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
             <div class="px-6 py-5 border-b border-slate-100">
                 <h3 class="text-2xl font-bold text-slate-800">Daily Milk Records</h3>
@@ -107,20 +116,21 @@ unset($_SESSION['milk_error']);
                             <th class="px-6 py-4">Morning (L)</th>
                             <th class="px-6 py-4">Evening (L)</th>
                             <th class="px-6 py-4">Total (L)</th>
-                            <th class="px-6 py-4">Sold (L)</th>
                             <th class="px-6 py-4">NRM (L)</th>
                             <th class="px-6 py-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($milk_records)): ?>
-                            <tr><td colspan="8" class="py-24 text-center">
-                                <div class="flex flex-col items-center">
-                                    <div class="text-slate-300 text-6xl mb-4"><i class="fas fa-glass-water"></i></div>
-                                    <h3 class="text-2xl font-bold text-slate-700 mb-2">No milk records</h3>
-                                    <p class="text-slate-400">Start recording daily milk production.</p>
-                                </div>
-                            </td></tr>
+                            <tr>
+                                <td colspan="9" class="py-24 text-center">
+                                    <div class="flex flex-col items-center">
+                                        <div class="text-slate-300 text-6xl mb-4"><i class="fas fa-glass-water"></i></div>
+                                        <h3 class="text-2xl font-bold text-slate-700 mb-2">No milk records</h3>
+                                        <p class="text-slate-400">Start recording daily milk production.</p>
+                                    </div>
+                                </td>
+                            </tr>
                         <?php else: ?>
                             <?php foreach ($milk_records as $record): ?>
                                 <tr class="border-t hover:bg-slate-50 transition">
@@ -129,7 +139,6 @@ unset($_SESSION['milk_error']);
                                     <td class="px-6 py-4"><?= number_format($record['morning_litres'], 1) ?> L</td>
                                     <td class="px-6 py-4"><?= number_format($record['evening_litres'], 1) ?> L</td>
                                     <td class="px-6 py-4 font-semibold text-emerald-700"><?= number_format($record['total_litres'], 1) ?> L</td>
-                                    <td class="px-6 py-4"><?= number_format($record['litres_sold'], 1) ?> L</td>
                                     <td class="px-6 py-4 text-amber-600"><?= number_format($record['nrm'], 1) ?> L</td>
                                     <td class="px-6 py-4">
                                         <div class="flex gap-2">
@@ -139,15 +148,16 @@ unset($_SESSION['milk_error']);
                                                 '<?= $record['production_date'] ?>',
                                                 <?= $record['morning_litres'] ?>,
                                                 <?= $record['evening_litres'] ?>,
-                                                <?= $record['litres_sold'] ?>,
-                                                '<?= addslashes($record['notes']) ?>'
-                                            )" class="text-blue-500 hover:text-blue-700">
+                                                '<?= addslashes($record['notes'] ?? '') ?>'
+                                            )" class="text-blue-500 hover:text-blue-700 transition">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <form method="POST" onsubmit="return confirm('Delete this record?')">
                                                 <input type="hidden" name="action" value="delete_record">
                                                 <input type="hidden" name="record_id" value="<?= $record['id'] ?>">
-                                                <button type="submit" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                                                <button type="submit" class="text-red-500 hover:text-red-700 transition">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             </form>
                                         </div>
                                     </td>
@@ -159,7 +169,7 @@ unset($_SESSION['milk_error']);
             </div>
         </div>
 
-        <!-- Monthly Total Card (unchanged) -->
+        <!-- Monthly Total Card -->
         <div class="mt-8 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-3xl shadow-sm border border-emerald-100 p-6">
             <div class="flex items-center justify-between flex-wrap gap-4">
                 <div class="flex items-center gap-4">
@@ -174,148 +184,188 @@ unset($_SESSION['milk_error']);
                 </div>
                 <div class="bg-white/60 px-4 py-2 rounded-xl">
                     <i class="fas fa-chart-simple text-emerald-600 mr-1"></i>
-                    <span class="text-sm font-medium text-emerald-800">Monthly average: <?= $total_records > 0 ? number_format($current_month_total / max(1, date('d')), 1) : 0 ?> L/day</span>
+                    <span class="text-sm font-medium text-emerald-800">
+                        Monthly average: <?= $total_records > 0 ? number_format($current_month_total / max(1, date('d')), 1) : 0 ?> L/day
+                    </span>
                 </div>
             </div>
         </div>
 
-        <!-- Pagination (unchanged) -->
+        <!-- Pagination -->
         <?php if ($total_pages > 1): ?>
         <div class="mt-6 flex justify-center">
             <div class="flex items-center gap-2 bg-white rounded-2xl shadow-sm border border-slate-100 px-4 py-2">
                 <?php if ($page > 1): ?>
-                    <a href="?page=<?= $page-1 ?>" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-600"><i class="fas fa-chevron-left"></i></a>
+                    <a href="?page=<?= $page - 1 ?>" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-600">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
                 <?php endif; ?>
                 <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                    <a href="?page=<?= $i ?>" class="px-4 py-2 rounded-xl <?= $i == $page ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-100' ?>"><?= $i ?></a>
+                    <a href="?page=<?= $i ?>"
+                       class="px-4 py-2 rounded-xl <?= $i == $page ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-100' ?>">
+                        <?= $i ?>
+                    </a>
                 <?php endfor; ?>
                 <?php if ($page < $total_pages): ?>
-                    <a href="?page=<?= $page+1 ?>" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-600"><i class="fas fa-chevron-right"></i></a>
+                    <a href="?page=<?= $page + 1 ?>" class="px-3 py-2 rounded-xl hover:bg-slate-100 text-slate-600">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
                 <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>
+
     </main>
 </div>
 
-<!-- MODAL: Add / Edit Milk Record (unchanged) -->
+<!-- ============================================================
+     MODAL: Add / Edit Milk Record
+     ============================================================ -->
 <div id="milkModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
-    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-7">
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-7 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 id="modalTitle" class="text-2xl font-bold text-slate-800">Add Milk Record</h2>
-            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
         </div>
         <form id="milkForm" method="POST" class="space-y-5">
             <input type="hidden" name="action" value="add_record">
             <input type="hidden" id="recordId" name="record_id" value="0">
+
             <!-- Cow -->
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Cow</label>
-                <select id="cowId" name="cow_id" required class="w-full border border-slate-200 rounded-xl px-4 py-3">
+                <select id="cowId" name="cow_id" required
+                        class="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400">
                     <option value="">Choose cow</option>
                     <?php foreach ($cows as $cow): ?>
-                        <option value="<?= $cow['id'] ?>"><?= htmlspecialchars($cow['cow_name']) ?> (<?= htmlspecialchars($cow['ear_tag']) ?>)</option>
+                        <option value="<?= $cow['id'] ?>">
+                            <?= htmlspecialchars($cow['cow_name']) ?> (<?= htmlspecialchars($cow['ear_tag']) ?>)
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
+
             <!-- Date -->
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Production Date</label>
-                <input type="date" id="prodDate" name="production_date" value="<?= date('Y-m-d') ?>" required class="w-full border border-slate-200 rounded-xl px-4 py-3">
+                <input type="date" id="prodDate" name="production_date"
+                       value="<?= date('Y-m-d') ?>" required
+                       class="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400">
             </div>
+
             <!-- Morning & Evening -->
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Morning (Litres)</label>
-                    <input type="number" step="0.1" min="0" id="morningLitres" name="morning_litres" value="0" class="w-full border border-slate-200 rounded-xl px-4 py-3">
+                    <input type="number" step="0.1" min="0" id="morningLitres" name="morning_litres" value="0"
+                           class="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Evening (Litres)</label>
-                    <input type="number" step="0.1" min="0" id="eveningLitres" name="evening_litres" value="0" class="w-full border border-slate-200 rounded-xl px-4 py-3">
+                    <input type="number" step="0.1" min="0" id="eveningLitres" name="evening_litres" value="0"
+                           class="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400">
                 </div>
             </div>
-            <!-- Litres Sold -->
-            <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-2">Litres Sold (Revenue)</label>
-                <input type="number" step="0.1" min="0" id="litresSold" name="litres_sold" value="0" class="w-full border border-slate-200 rounded-xl px-4 py-3">
-                <p class="text-xs text-slate-400 mt-1">Non‑revenue milk = Total − Sold</p>
-            </div>
+
+
+
             <!-- Notes -->
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Notes</label>
-                <textarea id="notes" name="notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3"></textarea>
+                <textarea id="notes" name="notes" rows="2"
+                          class="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400"></textarea>
             </div>
-            <button type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-3 rounded-2xl transition">Save Record</button>
+
+            <button type="submit"
+                    class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-3 rounded-2xl transition">
+                Save Record
+            </button>
         </form>
     </div>
 </div>
 
-<!-- NEW MODAL: Edit Milk Price -->
+<!-- ============================================================
+     MODAL: Edit Milk Price
+     ============================================================ -->
 <div id="priceModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-7">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-bold text-slate-800">Edit Milk Price</h2>
-            <button onclick="closePriceModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+            <button onclick="closePriceModal()" class="text-slate-400 hover:text-slate-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
         </div>
         <form method="POST" class="space-y-5">
             <input type="hidden" name="action" value="update_price">
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Price per Litre (KSh)</label>
-                <input type="number" step="0.01" name="milk_price" value="<?= number_format($milk_price, 2) ?>" 
-                       class="w-full border border-slate-200 rounded-xl px-4 py-3" required>
+                <input type="number" step="0.01" name="milk_price"
+                       value="<?= number_format($milk_price, 2) ?>"
+                       class="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                       required>
             </div>
-            <button type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-3 rounded-2xl transition">
+            <button type="submit"
+                    class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-3 rounded-2xl transition">
                 Save Price
             </button>
         </form>
     </div>
 </div>
 
+<!-- ============================================================
+     Scripts
+     ============================================================ -->
 <script>
-function openModal(id, cowId, date, morning, evening, sold, notes) {
-    const modal = document.getElementById('milkModal');
-    const title = document.getElementById('modalTitle');
+function openModal(id, cowId, date, morning, evening, notes) {
+    const modal         = document.getElementById('milkModal');
+    const title         = document.getElementById('modalTitle');
     const recordIdField = document.getElementById('recordId');
-    const cowSelect = document.getElementById('cowId');
-    const dateField = document.getElementById('prodDate');
-    const morningField = document.getElementById('morningLitres');
-    const eveningField = document.getElementById('eveningLitres');
-    const soldField = document.getElementById('litresSold');
-    const notesField = document.getElementById('notes');
+    const cowSelect     = document.getElementById('cowId');
+    const dateField     = document.getElementById('prodDate');
+    const morningField  = document.getElementById('morningLitres');
+    const eveningField  = document.getElementById('eveningLitres');
+    const notesField    = document.getElementById('notes');
 
     if (id) {
-        title.innerText = 'Edit Milk Record';
-        recordIdField.value = id;
-        cowSelect.value = cowId;
-        dateField.value = date;
-        morningField.value = morning;
-        eveningField.value = evening;
-        soldField.value = sold;
-        notesField.value = notes || '';
+        title.innerText      = 'Edit Milk Record';
+        recordIdField.value  = id;
+        cowSelect.value      = cowId;
+        dateField.value      = date;
+        morningField.value   = morning;
+        eveningField.value   = evening;
+        notesField.value     = notes || '';
     } else {
-        title.innerText = 'Add Milk Record';
-        recordIdField.value = 0;
-        cowSelect.value = '';
-        dateField.value = '<?= date('Y-m-d') ?>';
-        morningField.value = 0;
-        eveningField.value = 0;
-        soldField.value = 0;
-        notesField.value = '';
+        title.innerText      = 'Add Milk Record';
+        recordIdField.value  = 0;
+        cowSelect.value      = '';
+        dateField.value      = '<?= date('Y-m-d') ?>';
+        morningField.value   = 0;
+        eveningField.value   = 0;
+        notesField.value     = '';
     }
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
+
 function closeModal() {
-    document.getElementById('milkModal').classList.add('hidden');
-    document.getElementById('milkModal').classList.remove('flex');
+    const modal = document.getElementById('milkModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
+
 function openPriceModal() {
-    document.getElementById('priceModal').classList.remove('hidden');
-    document.getElementById('priceModal').classList.add('flex');
+    const modal = document.getElementById('priceModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 }
+
 function closePriceModal() {
-    document.getElementById('priceModal').classList.add('hidden');
-    document.getElementById('priceModal').classList.remove('flex');
+    const modal = document.getElementById('priceModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
 </script>
 

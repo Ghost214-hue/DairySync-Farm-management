@@ -130,7 +130,7 @@ function renderSidebar() {
             </a>
 
             <!-- Reports -->
-            <a href="<?= UrlHelper::url('reports') ?>" class="<?= $nav_class('reports') ?>">
+            <a href="<?= UrlHelper::url('milk_report') ?>" class="<?= $nav_class('milk_report') ?>">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
                           d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
