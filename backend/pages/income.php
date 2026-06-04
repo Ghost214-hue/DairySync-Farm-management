@@ -173,11 +173,23 @@ $stmt->close();
 
 $net_profit = $total_income - $total_expenses;
 
-// Total NRM value (from Milk Sales only)
+// Total NRM value (calculated from production minus total milk sales per day)
 $total_nrm = 0;
-$nrm_query = "SELECT SUM(nrm_value) as nrm FROM income WHERE user_id = ? AND source = 'Milk Sales'";
+$nrm_query = "SELECT SUM(GREATEST(0, IFNULL(mp.total, 0) - IFNULL(ms.total, 0))) as nrm
+              FROM (
+                  SELECT production_date, SUM(morning_litres + evening_litres) AS total
+                  FROM milk_production
+                  WHERE user_id = ?
+                  GROUP BY production_date
+              ) mp
+              LEFT JOIN (
+                  SELECT income_date, SUM(litres) AS total
+                  FROM income
+                  WHERE user_id = ? AND source = 'Milk Sales'
+                  GROUP BY income_date
+              ) ms ON mp.production_date = ms.income_date";
 $stmt = $conn->prepare($nrm_query);
-$stmt->bind_param("i", $user_id);
+$stmt->bind_param("ii", $user_id, $user_id);
 $stmt->execute();
 $total_nrm = (float)($stmt->get_result()->fetch_assoc()['nrm'] ?? 0);
 $stmt->close();

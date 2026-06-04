@@ -43,14 +43,37 @@ if ($customer !== '') {
 }
 
 // Income Summary
-$inc_sum_sql = "SELECT SUM(total_amount) AS total_income, SUM(nrm_value) AS total_nrm FROM income WHERE $income_where";
+$inc_sum_sql = "SELECT SUM(total_amount) AS total_income FROM income WHERE $income_where";
 $stmt = $conn->prepare($inc_sum_sql);
 $stmt->bind_param($income_types, ...$income_params);
 $stmt->execute();
 $inc_sum = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 $total_income = $inc_sum['total_income'] ?? 0;
-$total_nrm    = $inc_sum['total_nrm'] ?? 0;
+$total_nrm = 0;
+
+// Calculate NRM separately from production and milk sales totals across the filtered date range.
+if ($income_source === '' || $income_source === 'Milk Sales') {
+    $nrm_sql = "SELECT SUM(GREATEST(0, IFNULL(mp.total, 0) - IFNULL(ms.total, 0))) AS total_nrm
+                FROM (
+                    SELECT production_date, SUM(morning_litres + evening_litres) AS total
+                    FROM milk_production
+                    WHERE user_id = ? AND production_date BETWEEN ? AND ?
+                    GROUP BY production_date
+                ) mp
+                LEFT JOIN (
+                    SELECT income_date, SUM(litres) AS total
+                    FROM income
+                    WHERE user_id = ? AND source = 'Milk Sales' AND income_date BETWEEN ? AND ?
+                    GROUP BY income_date
+                ) ms ON mp.production_date = ms.income_date";
+    $stmt = $conn->prepare($nrm_sql);
+    $stmt->bind_param("ississ", $user_id, $start_date, $end_date, $user_id, $start_date, $end_date);
+    $stmt->execute();
+    $nrm_sum = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    $total_nrm = $nrm_sum['total_nrm'] ?? 0;
+}
 
 // Income records (for table & export)
 $inc_records_sql = "SELECT income_date, source, customer_name, litres, rate_per_litre, total_amount, nrm_value 

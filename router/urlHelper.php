@@ -16,6 +16,7 @@ class UrlHelper {
     'cows'            => 'v4b7n1m8',
     'health'          => 'w5c8p2k9',
     'milk_production' => 'e6r9t2y5',
+    'milk_sales'      => 'x3c6m1k9',
     'feeds'           => 'k4f7d2m9',
     'income'          => 'b1m5q8c3',
     'reports'         => 'l7s0x2p4',

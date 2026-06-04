@@ -27,15 +27,12 @@ $end_date   = date('Y-m-d', strtotime($end_date));
 // ─────────────────────────────────────────────────────────────────────────
 $summary_sql = "
     SELECT 
-        SUM(morning_litres + evening_litres) AS total_milk,
-        SUM(litres_sold) AS total_sold,
-        SUM((morning_litres + evening_litres) - litres_sold) AS total_nrm,
-        SUM(((morning_litres + evening_litres) - litres_sold) * ?) AS nrm_value
+        SUM(morning_litres + evening_litres) AS total_milk
     FROM milk_production
     WHERE user_id = ? AND production_date BETWEEN ? AND ?
 ";
-$params = [$milk_price, $user_id, $start_date, $end_date];
-$types = "diss";
+$params = [$user_id, $start_date, $end_date];
+$types = "iss";
 if ($cow_id) {
     $summary_sql .= " AND cow_id = ?";
     $params[] = $cow_id;
@@ -47,6 +44,19 @@ $stmt->execute();
 $summary = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
+// Total sold milk from sales records in the same period
+$sold_sql = "SELECT SUM(litres) AS total_sold FROM income WHERE user_id = ? AND source = 'Milk Sales' AND income_date BETWEEN ? AND ?";
+$stmt = $conn->prepare($sold_sql);
+$stmt->bind_param("iss", $user_id, $start_date, $end_date);
+$stmt->execute();
+$sold_res = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+$total_sold = (float)($sold_res['total_sold'] ?? 0);
+$total_nrm = max(0, (float)($summary['total_milk'] ?? 0) - $total_sold);
+$summary['total_sold'] = $total_sold;
+$summary['total_nrm'] = $total_nrm;
+$summary['nrm_value'] = $total_nrm * $milk_price;
+
 // ─────────────────────────────────────────────────────────────────────────
 // 2. Detailed records (for table & export)
 // ─────────────────────────────────────────────────────────────────────────
@@ -56,10 +66,7 @@ $detail_sql = "
         c.cow_name,
         mp.morning_litres,
         mp.evening_litres,
-        mp.morning_litres + mp.evening_litres AS total_litres,
-        mp.litres_sold,
-        mp.customer_name,
-        (mp.morning_litres + mp.evening_litres) - mp.litres_sold AS nrm_litres
+        mp.morning_litres + mp.evening_litres AS total_litres
     FROM milk_production mp
     LEFT JOIN cows c ON mp.cow_id = c.id
     WHERE mp.user_id = ? AND mp.production_date BETWEEN ? AND ?
@@ -190,9 +197,6 @@ $conn->close();
                             <th class="px-4 py-3">Morning (L)</th>
                             <th class="px-4 py-3">Evening (L)</th>
                             <th class="px-4 py-3">Total (L)</th>
-                            <th class="px-4 py-3">Sold (L)</th>
-                            <th class="px-4 py-3">Customer</th>
-                            <th class="px-4 py-3">NRM (L)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -206,15 +210,6 @@ $conn->close();
                                     <td class="px-4 py-3"><?= number_format($r['morning_litres'], 1) ?></td>
                                     <td class="px-4 py-3"><?= number_format($r['evening_litres'], 1) ?></td>
                                     <td class="px-4 py-3 font-semibold"><?= number_format($r['total_litres'], 1) ?></td>
-                                    <td class="px-4 py-3"><?= number_format($r['litres_sold'], 1) ?></td>
-                                    <td class="px-4 py-3">
-                                        <?php if (!empty($r['customer_name'])): ?>
-                                            <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs"><?= htmlspecialchars($r['customer_name']) ?></span>
-                                        <?php else: ?>
-                                            —
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="px-4 py-3 text-amber-600"><?= number_format($r['nrm_litres'], 1) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>

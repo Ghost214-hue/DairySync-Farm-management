@@ -47,6 +47,40 @@ if ($farm = $farm_result->fetch_assoc()) {
 $farm_stmt->close();
 
 // ------------------------------------------------------------------
+// Helpers for recalculating Milk Sales NRM when production changes
+// ------------------------------------------------------------------
+function getDailyProductionTotal($conn, int $user_id, string $date): float {
+    $query = "SELECT SUM(morning_litres + evening_litres) AS total FROM milk_production WHERE user_id = ? AND production_date = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("is", $user_id, $date);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return (float)($result['total'] ?? 0);
+}
+
+function recalculateMilkSalesNrmForProductionDate($conn, int $user_id, string $date): void {
+    $daily_total = getDailyProductionTotal($conn, $user_id, $date);
+    $query = "SELECT id, litres FROM income WHERE user_id = ? AND source = 'Milk Sales' AND income_date = ? ORDER BY created_at ASC, id ASC";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("is", $user_id, $date);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $sales = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    $update = $conn->prepare("UPDATE income SET nrm_value = ? WHERE id = ?");
+    $cumulative = 0.0;
+    foreach ($sales as $sale) {
+        $cumulative += (float)$sale['litres'];
+        $nrm_value = max(0, $daily_total - $cumulative);
+        $update->bind_param("di", $nrm_value, $sale['id']);
+        $update->execute();
+    }
+    $update->close();
+}
+
+// ------------------------------------------------------------------
 // Handle add/update milk record
 // ------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -82,6 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $upd_stmt->close();
 
             if ($success) {
+                recalculateMilkSalesNrmForProductionDate($conn, $user_id, $production_date);
                 $_SESSION['milk_success'] = "Milk record updated successfully.";
             } else {
                 $_SESSION['milk_error'] = "Failed to update record.";
@@ -93,11 +128,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $insert = "INSERT INTO milk_production (user_id, farm_id, cow_id, production_date, morning_litres, evening_litres, notes)
                        VALUES (?, ?, ?, ?, ?, ?, ?)";
             $stmt = $conn->prepare($insert);
-            $stmt->bind_param("iisddds", $user_id, $farm_id, $cow_id, $production_date, $morning, $evening, $notes);
+            $stmt->bind_param("iiisdds", $user_id, $farm_id, $cow_id, $production_date, $morning, $evening, $notes);
             $success = $stmt->execute();
             $stmt->close();
 
             if ($success) {
+                recalculateMilkSalesNrmForProductionDate($conn, $user_id, $production_date);
                 $_SESSION['milk_success'] = "Milk record added successfully.";
             } else {
                 $_SESSION['milk_error'] = "Failed to add record.";
@@ -112,10 +148,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $record_id = (int)($_POST['record_id'] ?? 0);
 
         if ($record_id > 0) {
+            $date_query = "SELECT production_date FROM milk_production WHERE id = ? AND user_id = ?";
+            $stmt = $conn->prepare($date_query);
+            $stmt->bind_param("ii", $record_id, $user_id);
+            $stmt->execute();
+            $result = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
             $delete = "DELETE FROM milk_production WHERE id = ? AND user_id = ?";
             $stmt = $conn->prepare($delete);
             $stmt->bind_param("ii", $record_id, $user_id);
             if ($stmt->execute()) {
+                if ($result) {
+                    recalculateMilkSalesNrmForProductionDate($conn, $user_id, $result['production_date']);
+                }
                 $_SESSION['milk_success'] = "Record deleted successfully.";
             } else {
                 $_SESSION['milk_error'] = "Failed to delete record.";
@@ -170,7 +216,6 @@ $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) {
     $row['total_litres'] = $row['morning_litres'] + $row['evening_litres'];
-    $row['nrm'] = $row['total_litres'] - (float)($row['litres_sold'] ?? 0);
     $milk_records[] = $row;
 }
 $stmt->close();
@@ -187,10 +232,6 @@ $stmt->execute();
 $today_res = $stmt->get_result()->fetch_assoc();
 $today_milk = (float)($today_res['total'] ?? 0);
 $stmt->close();
-
-$today_sold = 0;
-$today_nrm = $today_milk;
-$today_nrm_value = $today_nrm * $milk_price;
 
 // ------------------------------------------------------------------
 // List of cows for dropdown

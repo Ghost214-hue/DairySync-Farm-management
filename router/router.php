@@ -20,6 +20,7 @@ $static_map = [
     'w5c8p2k9' => 'frontend/pages/health.php',
     'q1a4z7w3' => 'backend/auth/logout.php',
     'e6r9t2y5' => 'frontend/pages/milk_production.php',
+    'x3c6m1k9' => 'frontend/pages/milk_sales.php',
     'k4f7d2m9' => 'frontend/pages/feeds.php',
     'b1m5q8c3' => 'frontend/pages/income.php',
     'u8i1o4p7' => 'frontend/pages/settings.php',

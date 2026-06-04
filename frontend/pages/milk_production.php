@@ -84,22 +84,6 @@ unset($_SESSION['milk_error']);
                 <p class="text-slate-500 mt-2">Total Records</p>
             </div>
 
-            <!-- Non-Revenue Milk Value Card -->
-            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-slate-500 mb-1">Non‑Revenue Milk Value (Today)</p>
-                        <h2 class="text-4xl font-bold text-amber-600">KSh <?= number_format($today_nrm_value, 2) ?></h2>
-                        <p class="text-xs text-slate-400 mt-2">
-                            <?= number_format($today_nrm, 1) ?> L unsold × KSh <?= number_format($milk_price, 2) ?>
-                        </p>
-                    </div>
-                    <div class="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center">
-                        <i class="fas fa-exclamation-triangle text-amber-600 text-xl"></i>
-                    </div>
-                </div>
-            </div>
-
         </div>
 
         <!-- Milk Records Table -->
@@ -116,14 +100,13 @@ unset($_SESSION['milk_error']);
                             <th class="px-6 py-4">Morning (L)</th>
                             <th class="px-6 py-4">Evening (L)</th>
                             <th class="px-6 py-4">Total (L)</th>
-                            <th class="px-6 py-4">NRM (L)</th>
                             <th class="px-6 py-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($milk_records)): ?>
                             <tr>
-                                <td colspan="9" class="py-24 text-center">
+                                <td colspan="6" class="py-24 text-center">
                                     <div class="flex flex-col items-center">
                                         <div class="text-slate-300 text-6xl mb-4"><i class="fas fa-glass-water"></i></div>
                                         <h3 class="text-2xl font-bold text-slate-700 mb-2">No milk records</h3>
@@ -139,7 +122,6 @@ unset($_SESSION['milk_error']);
                                     <td class="px-6 py-4"><?= number_format($record['morning_litres'], 1) ?> L</td>
                                     <td class="px-6 py-4"><?= number_format($record['evening_litres'], 1) ?> L</td>
                                     <td class="px-6 py-4 font-semibold text-emerald-700"><?= number_format($record['total_litres'], 1) ?> L</td>
-                                    <td class="px-6 py-4 text-amber-600"><?= number_format($record['nrm'], 1) ?> L</td>
                                     <td class="px-6 py-4">
                                         <div class="flex gap-2">
                                             <button onclick="openModal(

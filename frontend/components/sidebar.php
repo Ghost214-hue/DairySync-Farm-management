@@ -109,6 +109,16 @@ function renderSidebar() {
                 </svg>
                 <span>Milk Production</span>
             </a>
+
+            <!-- Milk Sales -->
+            <a href="<?= UrlHelper::url('milk_sales') ?>" class="<?= $nav_class('milk_sales') ?>">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4l1-12z"/>
+                </svg>
+                <span>Milk Sales</span>
+            </a>
+
             <a href="<?= UrlHelper::url('feeds') ?>" class="<?= $nav_class('feeds') ?>">
             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round"
