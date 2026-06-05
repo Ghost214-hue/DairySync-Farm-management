@@ -29,7 +29,7 @@ unset($_SESSION['feed_error']);
 
     <?php renderSidebar(); ?>
 
-    <main class="flex-1 p-6">
+    <main class="flex-1 min-w-0 p-4 pt-20 md:p-6 md:pt-6">
 
         <!-- HEADER -->
         <div class="flex items-center justify-between mb-8">

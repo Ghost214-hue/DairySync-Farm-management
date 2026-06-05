@@ -37,8 +37,8 @@ if ($income_source !== '') {
     $income_types .= "s";
 }
 if ($customer !== '') {
-    $income_where .= " AND customer_name LIKE ?";
-    $income_params[] = "%$customer%";
+    $income_where .= " AND customer_name = ?";
+    $income_params[] = $customer;
     $income_types .= "s";
 }
 
@@ -141,6 +141,22 @@ $cat_res = $stmt->get_result();
 while ($c = $cat_res->fetch_assoc()) $cat_list[] = $c['category'];
 $stmt->close();
 
+// Customers who have bought milk, used by the income report customer filter.
+$customer_list = [];
+$customer_sql = "SELECT DISTINCT customer_name
+                 FROM income
+                 WHERE user_id = ?
+                   AND source = 'Milk Sales'
+                   AND customer_name IS NOT NULL
+                   AND TRIM(customer_name) <> ''
+                 ORDER BY customer_name";
+$stmt = $conn->prepare($customer_sql);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$customer_res = $stmt->get_result();
+while ($row = $customer_res->fetch_assoc()) $customer_list[] = $row['customer_name'];
+$stmt->close();
+
 $conn->close();
 
 // Days difference for averages
@@ -152,6 +168,7 @@ $avg_daily_expense = $total_expenses / $days_diff;
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finance Report | MooManager</title>
     <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -159,16 +176,16 @@ $avg_daily_expense = $total_expenses / $days_diff;
 <body class="bg-[#f4f7f2] min-h-screen">
 <div class="flex min-h-screen">
     <?php renderSidebar(); ?>
-    <main class="flex-1 p-7">
-        <h1 class="text-3xl font-bold text-slate-800 mb-4">💰 Finance Report (Income + Expenses)</h1>
+    <main class="flex-1 min-w-0 p-4 pt-20 md:p-7 md:pt-7">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">Finance Report (Income + Expenses)</h1>
         <?php $active_tab = 'income'; require __DIR__ . '/../components/report_tabs.php'; ?>
 
         <!-- Combined Filters -->
-        <form method="GET" class="bg-white p-5 rounded-2xl shadow-sm border mb-6 flex flex-wrap gap-4 items-end">
-            <div><label class="block text-sm font-medium mb-1">Start Date</label><input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" class="border rounded-xl px-4 py-2"></div>
-            <div><label class="block text-sm font-medium mb-1">End Date</label><input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" class="border rounded-xl px-4 py-2"></div>
+        <form method="GET" class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border mb-6 grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-4 lg:items-end">
+            <div><label class="block text-sm font-medium mb-1">Start Date</label><input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" class="w-full border rounded-xl px-4 py-2"></div>
+            <div><label class="block text-sm font-medium mb-1">End Date</label><input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" class="w-full border rounded-xl px-4 py-2"></div>
             <div><label class="block text-sm font-medium mb-1">Income Source</label>
-                <select name="income_source" class="border rounded-xl px-4 py-2">
+                <select name="income_source" class="w-full border rounded-xl px-4 py-2">
                     <option value="">All Sources</option>
                     <option value="Milk Sales" <?= $income_source === 'Milk Sales' ? 'selected' : '' ?>>Milk Sales</option>
                     <option value="Cow Sales" <?= $income_source === 'Cow Sales' ? 'selected' : '' ?>>Cow Sales</option>
@@ -177,14 +194,23 @@ $avg_daily_expense = $total_expenses / $days_diff;
                 </select>
             </div>
             <div><label class="block text-sm font-medium mb-1">Expense Category</label>
-                <select name="expense_category" class="border rounded-xl px-4 py-2">
+                <select name="expense_category" class="w-full border rounded-xl px-4 py-2">
                     <option value="">All Categories</option>
                     <?php foreach ($cat_list as $cat): ?>
                         <option value="<?= htmlspecialchars($cat) ?>" <?= $expense_category === $cat ? 'selected' : '' ?>><?= htmlspecialchars($cat) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div><label class="block text-sm font-medium mb-1">Customer Name (Income)</label><input type="text" name="customer" placeholder="Search" value="<?= htmlspecialchars($customer) ?>" class="border rounded-xl px-4 py-2"></div>
+            <div><label class="block text-sm font-medium mb-1">Milk Customer</label>
+                <select name="customer" class="w-full border rounded-xl px-4 py-2">
+                    <option value="">All Customers</option>
+                    <?php foreach ($customer_list as $customer_name): ?>
+                        <option value="<?= htmlspecialchars($customer_name) ?>" <?= $customer === $customer_name ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($customer_name) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <div><button type="submit" class="bg-emerald-700 text-white px-5 py-2 rounded-xl"><i class="fas fa-filter"></i> Apply</button></div>
         </form>
 
@@ -225,7 +251,7 @@ $avg_daily_expense = $total_expenses / $days_diff;
                 <button onclick="exportToExcel('incomeTable', 'Income_Report_<?= date('Y-m-d') ?>')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm"><i class="fas fa-file-excel"></i> Export to Excel</button>
             </div>
             <div class="overflow-x-auto">
-                <table id="incomeTable" class="w-full">
+                <table id="incomeTable" class="w-full min-w-[760px]">
                     <thead class="bg-slate-100"><tr class="text-left text-sm text-slate-600">
                         <th class="px-4 py-3">Date</th><th class="px-4 py-3">Source</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Litres</th><th class="px-4 py-3">Rate (KSh)</th><th class="px-4 py-3">Amount (KSh)</th><th class="px-4 py-3">NRM Value</th>
                     </tr></thead>
@@ -253,7 +279,7 @@ $avg_daily_expense = $total_expenses / $days_diff;
                 <button onclick="exportToExcel('expenseTable', 'Expense_Report_<?= date('Y-m-d') ?>')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm"><i class="fas fa-file-excel"></i> Export to Excel</button>
             </div>
             <div class="overflow-x-auto">
-                <table id="expenseTable" class="w-full">
+                <table id="expenseTable" class="w-full min-w-[640px]">
                     <thead class="bg-slate-100"><tr class="text-left text-sm text-slate-600">
                         <th class="px-4 py-3">Date</th><th class="px-4 py-3">Category</th><th class="px-4 py-3">Description</th><th class="px-4 py-3">Amount (KSh)</th>
                     </tr></thead>

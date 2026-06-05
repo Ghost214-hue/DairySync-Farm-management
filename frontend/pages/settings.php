@@ -6,6 +6,7 @@ require_once __DIR__ . '/../components/sidebar.php';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Farm Settings | MooManager</title>
     <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,10 +14,10 @@ require_once __DIR__ . '/../components/sidebar.php';
 <body class="bg-[#f4f7f2] min-h-screen">
 <div class="flex min-h-screen">
     <?php renderSidebar(); ?>
-    <main class="flex-1 p-7">
+    <main class="flex-1 min-w-0 p-4 pt-20 md:p-7 md:pt-7">
         <div class="max-w-2xl mx-auto">
-            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
-                <h1 class="text-3xl font-bold text-slate-800 mb-2">Farm Settings</h1>
+            <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-100 p-5 md:p-8">
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Farm Settings</h1>
                 <p class="text-slate-500 mb-6">Configure your farm preferences</p>
 
                 <?php if ($message): ?>
@@ -29,8 +30,8 @@ require_once __DIR__ . '/../components/sidebar.php';
                 <form method="POST" class="space-y-6">
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">Milk Price per Litre (KSh)</label>
-                        <div class="flex gap-3">
-                            <input type="number" step="0.01" name="milk_price" value="<?= number_format($current_price, 2) ?>" 
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input type="number" step="0.01" name="milk_price" value="<?= number_format($current_price, 2) ?>"
                                    class="flex-1 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500" required>
                             <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-3 rounded-xl font-semibold">Save</button>
                         </div>

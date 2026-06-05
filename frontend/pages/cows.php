@@ -25,7 +25,7 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
     <?php renderSidebar(); ?>
 
     <!-- ── Main Content ───────────────────────────────────────────────────── -->
-    <main class="flex-1 p-6 min-w-0">
+    <main class="flex-1 min-w-0 p-4 pt-20 md:p-6 md:pt-6">
 
         <!-- Top bar -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">

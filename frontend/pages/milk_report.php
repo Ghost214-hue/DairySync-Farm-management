@@ -104,6 +104,7 @@ $conn->close();
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Milk Production Report | MooManager</title>
     <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -111,26 +112,26 @@ $conn->close();
 <body class="bg-[#f4f7f2] min-h-screen">
 <div class="flex min-h-screen">
     <?php renderSidebar(); ?>
-    <main class="flex-1 p-7">
+    <main class="flex-1 min-w-0 p-4 pt-20 md:p-7 md:pt-7">
         <div class="mb-4">
-            <h1 class="text-3xl font-bold text-slate-800">📊 Milk Production Report</h1>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Milk Production Report</h1>
         </div>
 
         <?php $active_tab = 'milk'; require __DIR__ . '/../components/report_tabs.php'; ?>
 
         <!-- Filter Form -->
-        <form method="GET" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-wrap gap-4 items-end">
+        <form method="GET" class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-4 lg:items-end">
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-                <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" class="border rounded-xl px-4 py-2">
+                <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" class="w-full border rounded-xl px-4 py-2">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-                <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" class="border rounded-xl px-4 py-2">
+                <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" class="w-full border rounded-xl px-4 py-2">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Select Cow</label>
-                <select name="cow_id" class="border rounded-xl px-4 py-2 min-w-[180px]">
+                <select name="cow_id" class="w-full border rounded-xl px-4 py-2 min-w-[180px]">
                     <option value="">All Cows</option>
                     <?php foreach ($cows as $cow): ?>
                         <option value="<?= $cow['id'] ?>" <?= ($cow_id == $cow['id']) ? 'selected' : '' ?>>
@@ -143,7 +144,7 @@ $conn->close();
                 <button type="submit" class="bg-emerald-700 text-white px-5 py-2 rounded-xl hover:bg-emerald-800">
                     <i class="fas fa-filter"></i> Apply
                 </button>
-                <a href="?start_date=<?= date('Y-m-01') ?>&end_date=<?= date('Y-m-t') ?>" class="ml-2 text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl">Reset</a>
+                <a href="?start_date=<?= date('Y-m-01') ?>&end_date=<?= date('Y-m-t') ?>" class="inline-block mt-2 lg:mt-0 lg:ml-2 text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl">Reset</a>
             </div>
         </form>
 
@@ -189,7 +190,7 @@ $conn->close();
                 </button>
             </div>
             <div class="overflow-x-auto">
-                <table id="milkTable" class="w-full">
+                <table id="milkTable" class="w-full min-w-[680px]">
                     <thead class="bg-slate-100">
                         <tr class="text-left text-sm text-slate-600">
                             <th class="px-4 py-3">Date</th>

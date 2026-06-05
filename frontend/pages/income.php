@@ -33,7 +33,7 @@ unset(
 <div class="flex min-h-screen">
     <?php renderSidebar(); ?>
 
-    <main class="flex-1 p-7">
+    <main class="flex-1 min-w-0 p-4 pt-20 md:p-7 md:pt-7">
 
         <!-- Header -->
         <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
