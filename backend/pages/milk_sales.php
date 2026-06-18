@@ -1,11 +1,10 @@
 <?php
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../helpers/SettingsHelper.php';
+require_once __DIR__ . '/../../router/urlHelper.php';   // <-- added
 
 $conn = getDatabase();
 
@@ -15,8 +14,6 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
 }
 
 $user_id = (int)$_SESSION['user_id'];
-$settings = new SettingsHelper($user_id);
-$milk_price = $settings->getMilkPrice();
 
 // Get user's first farm
 $farm_id = 0;
@@ -31,7 +28,15 @@ if ($farm = $farm_result->fetch_assoc()) {
 $farm_stmt->close();
 
 // ------------------------------------------------------------------
-// Helpers for milk sales NRM calculation
+// Generate a fresh token for forms
+// ------------------------------------------------------------------
+if (empty($_SESSION['milk_form_token'])) {
+    $_SESSION['milk_form_token'] = bin2hex(random_bytes(32));
+}
+$form_token = $_SESSION['milk_form_token'];
+
+// ------------------------------------------------------------------
+// Helpers
 // ------------------------------------------------------------------
 function getDailyProduction($conn, int $user_id, string $date): float {
     $query = "SELECT SUM(morning_litres + evening_litres) AS total FROM milk_production WHERE user_id = ? AND production_date = ?";
@@ -74,54 +79,83 @@ function recalculateDailyMilkSalesNrm($conn, int $user_id, string $date): void {
     $update->close();
 }
 
+function getCustomerPrice($conn, int $customer_id): float {
+    $query = "SELECT price_per_litre FROM customers WHERE id = ? LIMIT 1";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $customer_id);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return (float)($result['price_per_litre'] ?? 0);
+}
+
+function getCustomerName($conn, int $customer_id): string {
+    $query = "SELECT customer_name FROM customers WHERE id = ? LIMIT 1";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $customer_id);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $result['customer_name'] ?? 'Unknown';
+}
+
 // ------------------------------------------------------------------
-// Handle add/update/delete milk sale record
+// Handle POST with token validation
 // ------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate token
+    if (!isset($_POST['form_token']) || $_POST['form_token'] !== ($_SESSION['milk_form_token'] ?? null)) {
+        $_SESSION['milk_error'] = "Invalid or duplicate submission. Please try again.";
+        header("Location: " . UrlHelper::url('milk_sales'));
+        exit();
+    }
+    // Clear token immediately
+    unset($_SESSION['milk_form_token']);
+
     $action = $_POST['action'] ?? '';
 
     if ($action === 'add_sale') {
         $sale_date       = $_POST['sale_date'] ?? date('Y-m-d');
         $litres_sold     = (float)($_POST['litres_sold'] ?? 0);
-        $customer_name   = trim($_POST['customer_name'] ?? '');
+        $customer_id     = (int)($_POST['customer_id'] ?? 0);
 
         $daily_total = getDailyProduction($conn, $user_id, $sale_date);
         $today_sales = getDailyMilkSalesTotal($conn, $user_id, $sale_date);
         $available_before_sale = max(0, $daily_total - $today_sales);
 
-        // Validate input
-        if ($litres_sold <= 0 || empty($customer_name)) {
+        if ($litres_sold <= 0 || $customer_id <= 0) {
             $_SESSION['milk_error'] = "Please fill in all required fields.";
-            header("Location: " . $_SERVER['PHP_SELF']);
+            header("Location: " . UrlHelper::url('milk_sales'));
             exit();
         }
 
         if ($litres_sold > $available_before_sale) {
-            $_SESSION['milk_error'] = "Cannot sell more milk than is available for today.";
-            header("Location: " . $_SERVER['PHP_SELF']);
+            $_SESSION['milk_error'] = "Cannot sell more than " . number_format($available_before_sale, 1) . "L available on " . date('M j, Y', strtotime($sale_date)) . ".";
+            header("Location: " . UrlHelper::url('milk_sales'));
             exit();
         }
 
-        // Calculate values
+        $customer_name = getCustomerName($conn, $customer_id);
+        $milk_price = getCustomerPrice($conn, $customer_id);
+
         $total_amount = $litres_sold * $milk_price;
         $source = 'Milk Sales';
         $nrm_value = max(0, $available_before_sale - $litres_sold);
 
-        // Insert income record
-        $insert = "INSERT INTO income (user_id, farm_id, source, customer_name, litres, rate_per_litre, total_amount, nrm_value, income_date, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        $insert = "INSERT INTO income (user_id, farm_id, customer_id, source, customer_name, litres, rate_per_litre, total_amount, nrm_value, income_date, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         $stmt = $conn->prepare($insert);
-        $stmt->bind_param("iissdddds", $user_id, $farm_id, $source, $customer_name, $litres_sold, $milk_price, $total_amount, $nrm_value, $sale_date);
+        $stmt->bind_param("iiissdddds", $user_id, $farm_id, $customer_id, $source, $customer_name, $litres_sold, $milk_price, $total_amount, $nrm_value, $sale_date);
         
         if ($stmt->execute()) {
             recalculateDailyMilkSalesNrm($conn, $user_id, $sale_date);
-            $_SESSION['milk_success'] = "Milk sale recorded successfully (KSh " . number_format($total_amount, 2) . ")";
+            $_SESSION['milk_success'] = "Milk sale to $customer_name recorded successfully (KSh " . number_format($total_amount, 2) . ")";
         } else {
             $_SESSION['milk_error'] = "Failed to record milk sale.";
         }
         $stmt->close();
 
-        header("Location: " . $_SERVER['PHP_SELF']);
+        header("Location: " . UrlHelper::url('milk_sales'));
         exit();
     }
 
@@ -155,13 +189,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['milk_error'] = "Sale not found.";
         }
 
-        header("Location: " . $_SERVER['PHP_SELF']);
+        header("Location: " . UrlHelper::url('milk_sales'));
         exit();
     }
 }
 
 // ------------------------------------------------------------------
-// Get TODAY's milk production
+// Get TODAY's data
 // ------------------------------------------------------------------
 $today_milk = 0;
 $today_query = "SELECT SUM(morning_litres + evening_litres) as total FROM milk_production 
@@ -173,7 +207,6 @@ $today_res = $stmt->get_result()->fetch_assoc();
 $today_milk = (float)($today_res['total'] ?? 0);
 $stmt->close();
 
-// Get today's sales (sold)
 $today_sales = 0;
 $today_sales_amount = 0;
 $today_sales_query = "SELECT SUM(litres) as sold, SUM(total_amount) as amount FROM income 
@@ -186,11 +219,26 @@ $today_sales = (float)($today_sales_res['sold'] ?? 0);
 $today_sales_amount = (float)($today_sales_res['amount'] ?? 0);
 $stmt->close();
 
-// Calculate remaining milk for today
 $remaining_milk = $today_milk - $today_sales;
 
 // ------------------------------------------------------------------
-// Pagination (50 per page)
+// Get active customers
+// ------------------------------------------------------------------
+$customers = [];
+$customer_query = "SELECT id, customer_name, price_per_litre FROM customers 
+                   WHERE user_id = ? AND status = 'Active' 
+                   ORDER BY customer_name ASC";
+$stmt = $conn->prepare($customer_query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $customers[] = $row;
+}
+$stmt->close();
+
+// ------------------------------------------------------------------
+// Pagination
 // ------------------------------------------------------------------
 $limit = 50;
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
@@ -204,7 +252,6 @@ $total_records = (int)($stmt->get_result()->fetch_assoc()['count'] ?? 0);
 $total_pages = ceil($total_records / $limit);
 $stmt->close();
 
-// Get milk sales records
 $milk_sales = [];
 $query = "SELECT i.*
           FROM income i

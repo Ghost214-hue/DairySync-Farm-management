@@ -27,6 +27,7 @@ $static_map = [
  
     'd4k9m2x8' => 'frontend/pages/milk_report.php',
     'p7l3n6w1' => 'frontend/pages/income_report.php',
+    's2v5b8c4' => 'frontend/pages/customers.php',
 ];
 
 // 1. Try static map first

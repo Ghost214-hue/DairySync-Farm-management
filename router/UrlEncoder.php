@@ -20,6 +20,7 @@ class UrlEncoder {
     'v4b7n1m8' => 'cows',
     'w5c8p2k9' => 'health',
     'e6r9t2y5' => 'milk_production',
+    's2v5b8c4' => 'customers',
     'k4f7d2m9' => 'feeds', 
     'b1m5q8c3' => 'income',
     'l7s0x2p4' => 'reports',

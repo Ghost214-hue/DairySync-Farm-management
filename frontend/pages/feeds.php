@@ -216,6 +216,9 @@ unset($_SESSION['feed_error']);
                                                name="feed_id"
                                                value="<?= $feed['id'] ?>">
 
+                                        <!-- Token is optional for delete, but we include it anyway -->
+                                        <input type="hidden" name="form_token" value="<?= $form_token ?>">
+
                                         <button type="submit"
                                                 onclick="return confirm('Delete this feed record?')"
                                                 class="text-red-500 hover:text-red-700">
@@ -259,9 +262,10 @@ unset($_SESSION['feed_error']);
             </button>
         </div>
 
-        <form method="POST" class="p-6 space-y-4">
+        <form method="POST" class="p-6 space-y-4" id="addFeedForm">
 
             <input type="hidden" name="action" value="add_feed">
+            <input type="hidden" name="form_token" value="<?= $form_token ?>">
 
             <div class="grid grid-cols-2 gap-4">
 
@@ -353,6 +357,8 @@ unset($_SESSION['feed_error']);
             </div>
 
             <button type="submit"
+                    id="submitBtn"
+                    onclick="this.disabled=true; this.form.submit();"
                     class="w-full bg-farm-green-700 hover:bg-farm-green-800 text-white py-3 rounded-xl font-semibold transition">
 
                 Save Feed Record
