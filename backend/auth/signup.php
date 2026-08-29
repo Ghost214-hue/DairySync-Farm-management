@@ -23,125 +23,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Invalid request. Please try again.';
         $message_type = 'error';
     } else {
-
-        // Include database configuration
-        require_once __DIR__ . '/../config/database.php';
-
-        // Get database connection
-        $conn = getDatabase();
-
-        // Get and sanitize input data
-        $username            = sanitizeInput($_POST['username'] ?? '');
-        $email               = sanitizeInput($_POST['email'] ?? '');
-        $password            = $_POST['password'] ?? '';
-        $phone               = sanitizeInput($_POST['phone'] ?? '');
-        $farm_name           = sanitizeInput($_POST['farm_name'] ?? '');
-        $location            = sanitizeInput($_POST['location'] ?? '');
-        $registration_number = sanitizeInput($_POST['registration_number'] ?? '');
-
-        // Validate required fields
-        if (empty($username) || empty($email) || empty($password) || empty($farm_name) || empty($location) || empty($registration_number)) {
-            $message      = 'All required fields must be filled';
-            $message_type = 'error';
-        }
-        // Validate email
-        elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $message      = 'Invalid email format';
-            $message_type = 'error';
-        }
-        // Validate password length
-        elseif (strlen($password) < 6) {
-            $message      = 'Password must be at least 6 characters';
+        // Rate limiting check
+        require_once __DIR__ . '/../middleware/RateLimiter.php';
+        if (!RateLimiter::check('signup', 3, 3600)) {
+            $message = 'Too many registration attempts. Please try again in 1 hour.';
             $message_type = 'error';
         } else {
-            // Check if username or email already exists
-            $check_user = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
-            $check_user->bind_param("ss", $username, $email);
-            $check_user->execute();
-            $check_user->store_result();
 
-            if ($check_user->num_rows > 0) {
-                $message      = 'Username or email already exists';
+            // Include database configuration
+            require_once __DIR__ . '/../config/database.php';
+            require_once __DIR__ . '/../middleware/Auth.php';
+
+            // Get database connection
+            $conn = getDatabase();
+
+            // Get and sanitize input data
+            $username  = sanitizeInput($_POST['username'] ?? '');
+            $email     = sanitizeInput($_POST['email'] ?? '');
+            $password  = $_POST['password'] ?? '';
+            $phone     = sanitizeInput($_POST['phone'] ?? '');
+            $farm_name = sanitizeInput($_POST['farm_name'] ?? '');
+            $location  = sanitizeInput($_POST['location'] ?? '');
+            $registration_number = sanitizeInput($_POST['registration_number'] ?? '');
+
+            if (empty($registration_number)) {
+                $registration_number = 'FM-' . str_pad(random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
+            }
+
+            // Validate required fields
+            if (empty($username) || empty($email) || empty($password) || empty($farm_name) || empty($location)) {
+                $message = 'All required fields must be filled';
                 $message_type = 'error';
-                $check_user->close();
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $message = 'Invalid email format';
+                $message_type = 'error';
+            } elseif (strlen($password) < 6) {
+                $message = 'Password must be at least 6 characters';
+                $message_type = 'error';
             } else {
-                $check_user->close();
 
-                // Check if farm registration number already exists
-                $check_farm = $conn->prepare("SELECT id FROM farms WHERE registration_number = ?");
-                $check_farm->bind_param("s", $registration_number);
-                $check_farm->execute();
-                $check_farm->store_result();
+                // Check if username or email already exists
+                $check_user = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+                $check_user->bind_param("ss", $username, $email);
+                $check_user->execute();
+                $check_user->store_result();
 
-                if ($check_farm->num_rows > 0) {
-                    $message      = 'Farm registration number already exists';
+                if ($check_user->num_rows > 0) {
+                    $message = 'Username or email already exists';
                     $message_type = 'error';
-                    $check_farm->close();
+                    $check_user->close();
                 } else {
-                    $check_farm->close();
+                    $check_user->close();
 
-                // Check if this email is already registered for this farm
-                $check_farm_email = $conn->prepare("SELECT u.id FROM users u JOIN farms f ON u.id = f.user_id WHERE f.registration_number = ? AND u.email != ?");
-                $check_farm_email->bind_param("ss", $registration_number, $email);
-                $check_farm_email->execute();
-                $check_farm_email->store_result();
-
-                if ($check_farm_email->num_rows > 0) {
-                    $message      = 'This farm is already registered with another email';
-                    $message_type = 'error';
-                    $check_farm_email->close();
-                } else {
-                    $check_farm_email->close();
-
-                    // Hash password
-                    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-                    // Start transaction
-                    $conn->begin_transaction();
-
-                    try {
-                        // Insert user
-                        $insert_user = $conn->prepare("INSERT INTO users (username, email, password, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
-                        $insert_user->bind_param("ssss", $username, $email, $hashed_password, $phone);
-
-                        if (!$insert_user->execute()) {
-                            throw new Exception("Failed to create user account");
+                    // Check for registration number collision
+                    $attempts = 0;
+                    $collision = false;
+                    do {
+                        if ($attempts > 0) {
+                            $registration_number = 'FM-' . str_pad(random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
                         }
+                        $check_farm = $conn->prepare("SELECT id FROM farms WHERE registration_number = ?");
+                        $check_farm->bind_param("s", $registration_number);
+                        $check_farm->execute();
+                        $check_farm->store_result();
+                        $collision = $check_farm->num_rows > 0;
+                        $check_farm->close();
+                        $attempts++;
+                    } while ($collision && $attempts < 5);
 
-                        $user_id = $conn->insert_id;
-                        $insert_user->close();
-
-                        // Insert farm
-                        $insert_farm = $conn->prepare("INSERT INTO farms (user_id, farm_name, location, registration_number, created_at) VALUES (?, ?, ?, ?, NOW())");
-                        $insert_farm->bind_param("isss", $user_id, $farm_name, $location, $registration_number);
-
-                        if (!$insert_farm->execute()) {
-                            throw new Exception("Failed to create farm");
-                        }
-
-                        $insert_farm->close();
-
-                        // Commit transaction
-                        $conn->commit();
-
-                        // Regenerate CSRF token after successful registration
-                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-
-                        require_once __DIR__ . '/../../router/urlHelper.php';
-                        UrlHelper::redirect('signin', ['registered' => 1]);
-                        exit();
-
-                    } catch (Exception $e) {
-                        // Rollback transaction on error
-                        $conn->rollback();
-                        $message      = 'Registration failed: ' . $e->getMessage();
+                    if ($collision) {
+                        $message = 'Could not generate a unique farm ID. Please try again.';
                         $message_type = 'error';
+                    } else {
+
+                        // Hash password
+                        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+                        // Start transaction
+                        $conn->begin_transaction();
+
+                        try {
+                            // Insert user
+                            $insert_user = $conn->prepare("INSERT INTO users (username, email, password, phone, created_at) VALUES (?, ?, ?, ?, NOW())");
+                            $insert_user->bind_param("ssss", $username, $email, $hashed_password, $phone);
+
+                            if (!$insert_user->execute()) {
+                                throw new Exception("Failed to create user account");
+                            }
+
+                            $user_id = $conn->insert_id;
+                            $insert_user->close();
+
+                            // Insert farm
+                            $insert_farm = $conn->prepare("INSERT INTO farms (user_id, farm_name, location, registration_number, created_at) VALUES (?, ?, ?, ?, NOW())");
+                            $insert_farm->bind_param("isss", $user_id, $farm_name, $location, $registration_number);
+
+                            if (!$insert_farm->execute()) {
+                                throw new Exception("Failed to create farm");
+                            }
+
+                            $insert_farm->close();
+
+                            // Commit transaction
+                            $conn->commit();
+
+                            // Regenerate session ID to prevent session fixation
+                            Auth::regenerateSession();
+                            
+                            // Regenerate CSRF token after successful registration
+                            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                            
+                            // Clear rate limiting
+                            RateLimiter::clearAttempts('signup');
+                            
+                            require_once __DIR__ . '/../../router/urlHelper.php';
+                            UrlHelper::redirect('signin', ['registered' => 1]);
+                            exit();
+
+                        } catch (Exception $e) {
+                            $conn->rollback();
+                            $message = 'Registration failed. Please try again.';
+                            $message_type = 'error';
+                            RateLimiter::recordAttempt('signup');
+                        }
                     }
                 }
             }
-        }
-        }
 
-        $conn->close();
+            $conn->close();
+        }
     }
 }
+?>
