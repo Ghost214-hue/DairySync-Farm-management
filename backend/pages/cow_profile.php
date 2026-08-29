@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/FarmContext.php';
 require_once __DIR__ . '/../../router/urlHelper.php';
 
 $conn = getDatabase();
@@ -57,13 +58,8 @@ if (!$cow) {
     exit();
 }
 
-// Get farm info
-$farm_query = "SELECT farm_name, location FROM farms WHERE user_id = ? LIMIT 1";
-$stmt = $conn->prepare($farm_query);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$farm = $stmt->get_result()->fetch_assoc();
-$stmt->close();
+// Active farm via central FarmContext (single source of truth)
+$farm = FarmContext::currentFarm();
 
 // Get milk production summary
 $milk_summary = [];

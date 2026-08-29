@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/SettingsHelper.php';
+require_once __DIR__ . '/../helpers/FarmContext.php';
 
 $conn = getDatabase();
 
@@ -15,16 +16,7 @@ $settings = new SettingsHelper($user_id);
 $default_milk_price = $settings->getMilkPrice();
 
 // Get user's first farm
-$farm_id = 0;
-$farm_query = "SELECT id FROM farms WHERE user_id = ? LIMIT 1";
-$farm_stmt = $conn->prepare($farm_query);
-$farm_stmt->bind_param("i", $user_id);
-$farm_stmt->execute();
-$farm_result = $farm_stmt->get_result();
-if ($farm = $farm_result->fetch_assoc()) {
-    $farm_id = (int)$farm['id'];
-}
-$farm_stmt->close();
+$farm_id = FarmContext::currentFarmId() ?? 0;
 
 // ------------------------------------------------------------------
 // Handle milk price update (from income page)

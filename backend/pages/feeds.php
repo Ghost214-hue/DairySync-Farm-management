@@ -7,6 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../middleware/Protector.php';
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/FarmContext.php';
 require_once __DIR__ . '/../../router/urlHelper.php';
 
 $conn = getDatabase();
@@ -14,15 +15,7 @@ $conn = getDatabase();
 $user_id = (int)$_SESSION['user_id'];
 
 // Get user's first farm
-$farm_id = 0;
-$farm_stmt = $conn->prepare("SELECT id FROM farms WHERE user_id = ? LIMIT 1");
-$farm_stmt->bind_param("i", $user_id);
-$farm_stmt->execute();
-$farm_result = $farm_stmt->get_result();
-if ($farm = $farm_result->fetch_assoc()) {
-    $farm_id = (int)$farm['id'];
-}
-$farm_stmt->close();
+$farm_id = FarmContext::currentFarmId() ?? 0;
 
 // ------------------------------------------------------------------
 // Generate a fresh token for forms

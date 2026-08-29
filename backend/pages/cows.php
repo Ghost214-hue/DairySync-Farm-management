@@ -5,31 +5,14 @@
 require_once __DIR__ . '/../middleware/Protector.php';
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/FarmContext.php';
 
 $conn = getDatabase();
 
 $user_id = (int) $_SESSION['user_id'];
 
-$farm_stmt = $conn->prepare("
-    SELECT id
-    FROM farms
-    WHERE user_id = ?
-    LIMIT 1
-");
-
-$farm_stmt->bind_param("i", $user_id);
-$farm_stmt->execute();
-
-$farm_result = $farm_stmt->get_result();
-$farm = $farm_result->fetch_assoc();
-
-if (!$farm) {
-    die('No farm found for this user.');
-}
-
-$farm_id = (int) $farm['id'];
-
-$farm_stmt->close();
+// Active farm via central FarmContext (single source of truth)
+$farm_id = FarmContext::currentFarmIdOrFail();
 
 const ALLOWED_BREEDS = [
     'Holstein',

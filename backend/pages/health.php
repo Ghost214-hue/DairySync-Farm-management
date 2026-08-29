@@ -10,11 +10,12 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
 }
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/FarmContext.php';
 
 $conn = getDatabase();
 
 $user_id = (int) $_SESSION['user_id'];
-$farm_id = (int) ($_SESSION['farm_id'] ?? 1);
+$farm_id = FarmContext::currentFarmId() ?? 0;
 
 const HEALTH_STATUSES = [
     'Healthy',
@@ -40,11 +41,11 @@ $cows = [];
 $cow_stmt = $conn->prepare("
     SELECT id, cow_name, ear_tag
     FROM cows
-    WHERE user_id = ?
+    WHERE farm_id = ?
     ORDER BY cow_name ASC
 ");
 
-$cow_stmt->bind_param("i", $user_id);
+$cow_stmt->bind_param("i", $farm_id);
 $cow_stmt->execute();
 
 $cow_result = $cow_stmt->get_result();
@@ -65,11 +66,11 @@ $health_stmt = $conn->prepare("
         c.ear_tag
     FROM health_records hr
     JOIN cows c ON c.id = hr.cow_id
-    WHERE hr.user_id = ?
+    WHERE hr.farm_id = ?
     ORDER BY hr.record_date DESC
 ");
 
-$health_stmt->bind_param("i", $user_id);
+$health_stmt->bind_param("i", $farm_id);
 $health_stmt->execute();
 
 $health_result = $health_stmt->get_result();
@@ -96,6 +97,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$cow_id) {
             healthRedirect('error', 'Please select a cow.');
+        }
+
+        // Authorize: the selected cow MUST belong to the active farm.
+        $own = $conn->prepare("SELECT id FROM cows WHERE id = ? AND farm_id = ?");
+        $own->bind_param("ii", $cow_id, $farm_id);
+        $own->execute();
+        $cow_owned = (bool) $own->get_result()->fetch_assoc();
+        $own->close();
+        if (!$cow_owned) {
+            healthRedirect('error', 'Invalid cow selected.');
         }
 
         if (!$condition) {
