@@ -77,14 +77,32 @@ require_once __DIR__ . '/../../router/urlHelper.php';
                     </div>
                 </div>
 
-                <!-- QR Code Section -->
+                <!-- QR Code / Share Section -->
+                <?php if ($share_link): ?>
                 <div class="flex flex-col items-center gap-2">
-                    <div id="qrcode" class="bg-white p-2 rounded-lg shadow-sm"></div>
-                    <p class="text-xs text-farm-green-600 font-medium">Scan to view profile</p>
+                    <!-- QR code itself opens the profile in a new tab when clicked on desktop -->
+                    <a id="qrcodeLink" href="" target="_blank" rel="noopener" title="Open this cow's public profile in a new tab">
+                        <div id="qrcode" class="bg-white p-2 rounded-lg shadow-sm hover:shadow-md transition"></div>
+                    </a>
+                    <p class="text-xs text-farm-green-600 font-medium">Scan with a phone to view profile</p>
+
+                    <!-- Clickable share link + copy button -->
+                    <div class="flex items-center gap-2 w-full max-w-xs">
+                        <a href="" id="shareLink"
+                           class="flex-1 min-w-0 truncate text-xs text-blue-600 hover:text-blue-800 hover:underline bg-white/80 border border-slate-200 rounded-lg px-3 py-2"
+                           target="_blank" rel="noopener"
+                           title="Open share link">Share link</a>
+                        <button onclick="copyShareLink(event)" id="copyLinkBtn"
+                                class="text-xs bg-farm-green-700 hover:bg-farm-green-800 text-white px-3 py-2 rounded-lg transition whitespace-nowrap">
+                            <i class="fas fa-copy mr-1"></i> Copy
+                        </button>
+                    </div>
+
                     <button onclick="downloadQR()" class="text-xs bg-farm-green-700 hover:bg-farm-green-800 text-white px-3 py-1.5 rounded-lg transition">
                         <i class="fas fa-download mr-1"></i> Download QR
                     </button>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -213,16 +231,51 @@ require_once __DIR__ . '/../../router/urlHelper.php';
 </div>
 
 <script>
-// Generate QR Code
+// Generate QR Code + wire up the clickable share link
 const shareUrl = "<?= htmlspecialchars($share_link) ?>";
-new QRCode(document.getElementById('qrcode'), {
-    text: shareUrl,
-    width: 150,
-    height: 150,
-    colorDark: '#2d5016',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
-});
+
+// QR code is an image, not a hyperlink — so we anchor it manually
+const qrLink = document.getElementById('qrcodeLink');
+if (qrLink) qrLink.href = shareUrl;
+
+// The visible share URL is also a clickable link
+const shareLinkEl = document.getElementById('shareLink');
+if (shareLinkEl) shareLinkEl.href = shareUrl;
+
+if (document.getElementById('qrcode')) {
+    new QRCode(document.getElementById('qrcode'), {
+        text: shareUrl,
+        width: 150,
+        height: 150,
+        colorDark: '#2d5016',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+    });
+}
+
+// Copy the share link to the clipboard
+function copyShareLink(e) {
+    e.preventDefault();
+    const btn = document.getElementById('copyLinkBtn');
+    const done = () => {
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy';
+        }, 2000);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(shareUrl).then(done);
+    } else {
+        // Fallback for non-HTTPS contexts (e.g. local http)
+        const tmp = document.createElement('textarea');
+        tmp.value = shareUrl;
+        document.body.appendChild(tmp);
+        tmp.select();
+        document.execCommand('copy');
+        document.body.removeChild(tmp);
+        done();
+    }
+}
 
 // Download QR Code
 function downloadQR() {
