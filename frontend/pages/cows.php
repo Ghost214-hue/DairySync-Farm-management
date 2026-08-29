@@ -159,8 +159,8 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
                                 <td class="px-5 py-3.5">
                                     <div class="flex items-center gap-3">
                                         <?php if (!empty($cow['image_path'])): ?>
-                                        <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-farm-green-200 flex-shrink-0">
-                                            <img src="<?= htmlspecialchars($cow['image_path']) ?>" alt="<?= htmlspecialchars($cow['name'] ?? 'Cow') ?>" class="w-full h-full object-cover">
+                                        <div style="width: 40px; height: 40px; min-width: 40px; min-height: 40px;" class="rounded-full overflow-hidden border-2 border-farm-green-200 flex-shrink-0">
+                                            <img src="<?= htmlspecialchars($cow['image_path']) ?>" alt="<?= htmlspecialchars($cow['name'] ?? 'Cow') ?>" style="width: 40px; height: 40px; object-fit: cover; border-radius: 9999px;">
                                         </div>
                                         <?php else: ?>
                                         <div class="w-10 h-10 bg-farm-green-100 rounded-full flex items-center justify-center text-farm-green-600 text-sm flex-shrink-0">

@@ -36,10 +36,11 @@ require_once __DIR__ . '/../../router/urlHelper.php';
                 <div class="flex items-center gap-4">
                     <!-- Cow Avatar / Image -->
                     <?php if (!empty($cow['image_path'])): ?>
-                    <div class="w-24 h-24 rounded-full overflow-hidden border-2 border-farm-green-200 shadow-sm flex-shrink-0">
+                    <div style="width: 96px; height: 96px; min-width: 96px; min-height: 96px;"
+                         class="rounded-full overflow-hidden border-2 border-farm-green-200 shadow-sm flex-shrink-0">
                         <img src="<?= htmlspecialchars($cow['image_path']) ?>" 
                              alt="Photo of <?= htmlspecialchars($cow['cow_name'] ?? 'cow') ?>"
-                             class="w-full h-full object-cover">
+                             style="width: 96px; height: 96px; object-fit: cover; border-radius: 9999px;">
                     </div>
                     <?php else: ?>
                     <div class="w-20 h-20 bg-farm-green-100 rounded-full flex items-center justify-center text-farm-green-700 text-3xl flex-shrink-0">
