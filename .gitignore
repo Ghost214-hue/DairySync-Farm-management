@@ -57,3 +57,11 @@ tests/
 
 # Documentation (if generating)
 docs/_build/
+
+# Exceptions: keep DB migrations in version control
+!backend/migrations/*.sql
+
+# Local dev & generated files
+dev-server.php
+config.zip
+public/uploads/

@@ -12,7 +12,7 @@ if (empty($_SESSION['csrf_token'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In | DairySync</title>
-    <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
+    <link href="/frontend/css/output.css" rel="stylesheet">
 </head>
 <body class="bg-gradient-to-br from-farm-green-50 via-farm-olive-50 to-farm-green-100 min-h-screen flex items-center justify-center p-4">
     <div class="max-w-md w-full">
@@ -58,7 +58,7 @@ if (empty($_SESSION['csrf_token'])) {
             <div class="mt-6 text-center">
                 <p class="text-farm-green-800">
                     Don't have an account? 
-                    <a href="/farm-management/a7k9m2x4" class="font-semibold text-farm-green-700 hover:text-farm-green-900 underline decoration-2 underline-offset-2">Create one</a>
+                    <a href="/a7k9m2x4b8498447a8d9b490bd20e599d74c2a402563ed" class="font-semibold text-farm-green-700 hover:text-farm-green-900 underline decoration-2 underline-offset-2">Create one</a>
                 </p>
             </div>
         </div>

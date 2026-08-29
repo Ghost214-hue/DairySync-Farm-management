@@ -137,6 +137,14 @@ function renderSidebar() {
                 <span>Milk Sales</span>
             </a>
 
+            <!-- Collections -->
+            <a href="<?= UrlHelper::url('collections') ?>" class="<?= $nav_class('collections') ?>">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 9v6a1 1 0 01-1 1H7l-4 4V7a1 1 0 011-1h10a1 1 0 011 1z"/>
+                </svg>
+                <span>Collections</span>
+            </a>
+
             <!-- Feed Management -->
             <a href="<?= UrlHelper::url('feeds') ?>" class="<?= $nav_class('feeds') ?>">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -268,6 +276,14 @@ function renderSidebar() {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4l1-12z"/>
                 </svg>
                 <span>Milk Sales</span>
+            </a>
+
+            <!-- Collections -->
+            <a href="<?= UrlHelper::url('collections') ?>" class="<?= $nav_class('collections') ?>">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 9v6a1 1 0 01-1 1H7l-4 4V7a1 1 0 011-1h10a1 1 0 011 1z"/>
+                </svg>
+                <span>Collections</span>
             </a>
 
             <!-- Feed Management -->

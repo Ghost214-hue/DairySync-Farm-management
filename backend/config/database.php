@@ -4,15 +4,28 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Enable error reporting for debugging
+// Security: Disable error display in production
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+// Try to set error log to a valid location
+$log_dir = __DIR__ . '/../../logs';
+if (!is_dir($log_dir)) {
+    @mkdir($log_dir, 0777, true);
+}
+if (is_dir($log_dir) && is_writable($log_dir)) {
+    ini_set('error_log', $log_dir . '/php_errors.log');
+} else {
+    // Fallback to system temp directory
+    ini_set('error_log', sys_get_temp_dir() . '/php_errors.log');
+}
 
 class Database {
-    private $host = "localhost";
-    private $db_name = "farm_management";
-    private $username = "root";
-    private $password = "";
+    public $host;
+    public $db_name;
+    public $username;
+    public $password;
     public $conn;
 
     public function getConnection() {
@@ -23,18 +36,17 @@ class Database {
             
             // Check connection
             if ($this->conn->connect_error) {
-                throw new Exception("Connection failed: " . $this->conn->connect_error);
+                throw new Exception("Database connection failed");
             }
             
             // Set charset to UTF-8
             $this->conn->set_charset("utf8");
             
         } catch(Exception $exception) {
-            echo json_encode([
-                "success" => false,
-                "message" => "Connection error: " . $exception->getMessage()
-            ]);
-            exit();
+            // Log error but don't expose details
+            error_log("Database connection error: " . $exception->getMessage());
+            http_response_code(500);
+            die("System temporarily unavailable. Please try again later.");
         }
         return $this->conn;
     }
@@ -43,6 +55,10 @@ class Database {
 // Function to get database connection
 function getDatabase() {
     $database = new Database();
+    $database->host = getenv('DB_HOST') ?: 'localhost';
+    $database->db_name = getenv('DB_NAME') ?: 'farm_management';
+    $database->username = getenv('DB_USER') ?: 'root';
+    $database->password = getenv('DB_PASS') ?: '';
     return $database->getConnection();
 }
 
@@ -54,7 +70,7 @@ function isLoggedIn() {
 // Function to redirect if not logged in
 function requireLogin() {
     if (!isLoggedIn()) {
-        header('Location: /farm-management/frontend/authentication/signin.php');
+        header('Location: /frontend/authentication/signin.php');
         exit();
     }
 }
@@ -63,7 +79,17 @@ function requireLogin() {
 function sanitizeInput($data) {
     $data = trim($data);
     $data = stripslashes($data);
-    $data = htmlspecialchars($data);
+    $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
     return $data;
+}
+
+// Initialize database config from environment
+function initDatabase() {
+    $database = new Database();
+    $database->host = getenv('DB_HOST') ?: 'localhost';
+    $database->db_name = getenv('DB_NAME') ?: 'farm_management';
+    $database->username = getenv('DB_USER') ?: 'root';
+    $database->password = getenv('DB_PASS') ?: '';
+    return $database;
 }
 ?>

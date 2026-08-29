@@ -16,7 +16,7 @@ unset($_SESSION['health_error']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Health Records | DairySync</title>
-    <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
+    <link href="/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body class="bg-gradient-to-br from-emerald-50 via-lime-50 to-emerald-100 min-h-screen">

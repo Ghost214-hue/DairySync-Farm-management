@@ -1,7 +1,7 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /farm-management/h3j5n8q1');
+    header('Location: /h3j5n8q1e81ea2b3a2d2bcf5ce5');
     exit();
 }
 
@@ -157,6 +157,40 @@ $customer_res = $stmt->get_result();
 while ($row = $customer_res->fetch_assoc()) $customer_list[] = $row['customer_name'];
 $stmt->close();
 
+// ─────────────────────────────────────────────────────────────────────────
+// CUSTOMER COLLECTIONS (Cash Flow — informational, NOT revenue)
+// A collection is a payment against an existing milk sale. It is stored in
+// the dedicated `collections` table and is never added to Total Income.
+// ─────────────────────────────────────────────────────────────────────────
+$cash_collected = 0;
+$collection_rows = [];
+$col_where = "user_id = ? AND payment_date BETWEEN ? AND ?";
+$col_params = [$user_id, $start_date, $end_date];
+$col_types = "iss";
+if ($customer !== '') {
+    $col_where .= " AND customer_name = ?";
+    $col_params[] = $customer;
+    $col_types .= "s";
+}
+
+$col_sum_sql = "SELECT SUM(amount) AS total FROM collections WHERE $col_where";
+$stmt = $conn->prepare($col_sum_sql);
+$stmt->bind_param($col_types, ...$col_params);
+$stmt->execute();
+$cash_collected = (float)($stmt->get_result()->fetch_assoc()['total'] ?? 0);
+$stmt->close();
+
+$col_records_sql = "SELECT payment_date, customer_name, amount, payment_method, reference_number
+                    FROM collections WHERE $col_where ORDER BY payment_date DESC LIMIT 500";
+$stmt = $conn->prepare($col_records_sql);
+$stmt->bind_param($col_types, ...$col_params);
+$stmt->execute();
+$collection_rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+
+// Outstanding receivable for the period = milk sales revenue − payments received
+$outstanding = $total_income - $cash_collected;
+
 $conn->close();
 
 // Days difference for averages
@@ -170,7 +204,7 @@ $avg_daily_expense = $total_expenses / $days_diff;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finance Report | MooManager</title>
-    <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
+    <link href="/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-[#f4f7f2] min-h-screen">
@@ -242,6 +276,16 @@ $avg_daily_expense = $total_expenses / $days_diff;
                 <div class="flex items-center justify-between mb-2"><p class="text-slate-500 text-sm uppercase">NRM Value (Milk Sales)</p><i class="fas fa-exclamation-triangle text-cyan-600 text-2xl"></i></div>
                 <p class="text-4xl font-bold text-cyan-700">KSh <?= number_format($total_nrm, 2) ?></p>
             </div>
+            <div class="bg-white rounded-2xl p-6 shadow-md border-l-8 border-teal-500">
+                <div class="flex items-center justify-between mb-2"><p class="text-slate-500 text-sm uppercase">Cash Collected (Customers)</p><i class="fas fa-money-bill-wave text-teal-600 text-2xl"></i></div>
+                <p class="text-4xl font-bold text-teal-700">KSh <?= number_format($cash_collected, 2) ?></p>
+                <p class="text-sm text-slate-400 mt-1">Payments received — cash flow only, not revenue</p>
+            </div>
+            <div class="bg-white rounded-2xl p-6 shadow-md border-l-8 border-orange-500">
+                <div class="flex items-center justify-between mb-2"><p class="text-slate-500 text-sm uppercase">Outstanding Receivable</p><i class="fas fa-hourglass-half text-orange-600 text-2xl"></i></div>
+                <p class="text-4xl font-bold <?= $outstanding > 0 ? 'text-orange-600' : 'text-slate-400' ?>">KSh <?= number_format($outstanding, 2) ?></p>
+                <p class="text-sm text-slate-400 mt-1">Milk sales revenue − customer payments</p>
+            </div>
         </div>
 
         <!-- Income Table with Export -->
@@ -265,6 +309,34 @@ $avg_daily_expense = $total_expenses / $days_diff;
                                 <td class="px-4 py-3"><?= $r['rate_per_litre'] ? 'KSh '.number_format($r['rate_per_litre'], 2) : '—' ?></td>
                                 <td class="px-4 py-3 font-semibold text-emerald-700">KSh <?= number_format($r['total_amount'], 2) ?></td>
                                 <td class="px-4 py-3 text-amber-600">KSh <?= number_format($r['nrm_value'] ?? 0, 2) ?></td>
+                            </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Customer Collections (Cash Flow) Table -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-semibold">💵 Customer Collections (Cash Flow)</h3>
+                    <p class="text-xs text-slate-400 mt-1">Payments received from customers against existing milk sales. Informational only — not added to revenue.</p>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[640px]">
+                    <thead class="bg-slate-100"><tr class="text-left text-sm text-slate-600">
+                        <th class="px-4 py-3">Date</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Method</th><th class="px-4 py-3">Reference</th><th class="px-4 py-3">Amount Paid (KSh)</th>
+                    </tr></thead>
+                    <tbody>
+                        <?php if (empty($collection_rows)): ?><tr><td colspan="5" class="text-center py-10 text-slate-400">No customer payments in this period.<?php else: foreach ($collection_rows as $c): ?>
+                            <tr class="border-t hover:bg-slate-50">
+                                <td class="px-4 py-3"><?= date('M j, Y', strtotime($c['payment_date'])) ?></td>
+                                <td class="px-4 py-3"><?= $c['customer_name'] ? '<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">'.htmlspecialchars($c['customer_name']).'</span>' : '—' ?></td>
+                                <td class="px-4 py-3"><?= htmlspecialchars($c['payment_method'] ?? '—') ?></td>
+                                <td class="px-4 py-3 text-slate-500"><?= $c['reference_number'] ? htmlspecialchars($c['reference_number']) : '—' ?></td>
+                                <td class="px-4 py-3 font-semibold text-teal-700">KSh <?= number_format($c['amount'], 2) ?></td>
                             </tr>
                         <?php endforeach; endif; ?>
                     </tbody>

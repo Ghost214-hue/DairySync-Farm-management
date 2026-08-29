@@ -9,7 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 $conn = getDatabase();
 
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    header('Location: /farm-management/h3j5n8q1');
+    header('Location: /h3j5n8q1e81ea2b3a2d2bcf5ce5');
     exit();
 }
 

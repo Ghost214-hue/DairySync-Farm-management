@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/SettingsHelper.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /farm-management/h3j5n8q1');
+    header('Location: /h3j5n8q1e81ea2b3a2d2bcf5ce5');
     exit();
 }
 

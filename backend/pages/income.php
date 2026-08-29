@@ -6,7 +6,7 @@ require_once __DIR__ . '/../helpers/SettingsHelper.php';
 $conn = getDatabase();
 
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    header('Location: /farm-management/h3j5n8q1');
+    header('Location: /h3j5n8q1e81ea2b3a2d2bcf5ce5');
     exit();
 }
 
@@ -172,6 +172,20 @@ $total_expenses = (float)($stmt->get_result()->fetch_assoc()['total'] ?? 0);
 $stmt->close();
 
 $net_profit = $total_income - $total_expenses;
+
+// ------------------------------------------------------------------
+// Customer collections (cash flow — stored in dedicated collections
+// table; payments are settlement of existing sales, NOT new revenue)
+// ------------------------------------------------------------------
+$total_collected = 0;
+$sum_collected = "SELECT SUM(amount) as total FROM collections WHERE user_id = ?";
+$stmt = $conn->prepare($sum_collected);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$total_collected = (float)($stmt->get_result()->fetch_assoc()['total'] ?? 0);
+$stmt->close();
+
+$outstanding_receivable = $total_income - $total_collected;
 
 // Total NRM value (calculated from production minus total milk sales per day)
 $total_nrm = 0;

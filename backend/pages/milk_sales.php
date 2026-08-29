@@ -1,17 +1,11 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Global authentication protection
+require_once __DIR__ . '/../middleware/Protector.php';
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../../router/urlHelper.php';   // <-- added
+require_once __DIR__ . '/../../router/urlHelper.php';
 
 $conn = getDatabase();
-
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    header('Location: /farm-management/h3j5n8q1');
-    exit();
-}
 
 $user_id = (int)$_SESSION['user_id'];
 

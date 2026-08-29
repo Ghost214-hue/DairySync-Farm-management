@@ -25,7 +25,7 @@ unset(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Income & Expenses | MooManager</title>
-    <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
+    <link href="/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-[#f4f7f2] min-h-screen">
@@ -113,6 +113,10 @@ unset(
                     KSh <?= number_format($net_profit) ?>
                 </h2>
                 <p class="text-slate-500 mt-2">Net Profit</p>
+                <p class="text-xs text-slate-400 mt-1">
+                    Cash collected: KSh <?= number_format($total_collected) ?>
+                    &bull; Outstanding: KSh <?= number_format($outstanding_receivable) ?>
+                </p>
             </div>
 
             <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">

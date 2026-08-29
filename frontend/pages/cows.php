@@ -16,7 +16,7 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cows | MooManager</title>
-    <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
+    <link href="/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gradient-to-br from-farm-green-50 via-farm-olive-50 to-farm-green-100 min-h-screen">
@@ -156,8 +156,19 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
                                 data-breed="<?= strtolower(htmlspecialchars($cow['breed'])) ?>"
                                 data-status="<?= htmlspecialchars($cow['status']) ?>">
 
-                                <td class="px-5 py-3.5 font-mono font-semibold text-farm-green-800">
-                                    #<?= htmlspecialchars($cow['tag_number']) ?>
+                                <td class="px-5 py-3.5">
+                                    <div class="flex items-center gap-3">
+                                        <?php if (!empty($cow['image_path'])): ?>
+                                        <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-farm-green-200 flex-shrink-0">
+                                            <img src="<?= htmlspecialchars($cow['image_path']) ?>" alt="<?= htmlspecialchars($cow['name'] ?? 'Cow') ?>" class="w-full h-full object-cover">
+                                        </div>
+                                        <?php else: ?>
+                                        <div class="w-10 h-10 bg-farm-green-100 rounded-full flex items-center justify-center text-farm-green-600 text-sm flex-shrink-0">
+                                            <i class="fas fa-cow"></i>
+                                        </div>
+                                        <?php endif; ?>
+                                        <span class="font-mono font-semibold text-farm-green-800">#<?= htmlspecialchars($cow['tag_number']) ?></span>
+                                    </div>
                                 </td>
                                 <td class="px-5 py-3.5 font-medium text-farm-green-900">
                                     <?= $cow['name'] ? htmlspecialchars($cow['name']) : '<span class="text-farm-green-400 italic">Unnamed</span>' ?>
@@ -190,6 +201,12 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
                                                 title="Delete">
                                             <i class="fas fa-trash text-xs"></i>
                                         </button>
+                                        <!-- View Profile -->
+                                                     <a href="<?= UrlHelper::url('cow_profile', ['id' => $cow['id']]) ?>"
+                                                class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition"
+                                                title="View Profile">
+                                            <i class="fas fa-user text-xs"></i>
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -210,9 +227,6 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
     </main>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     ADD COW MODAL
-════════════════════════════════════════════════════════════════════════════ -->
 <div id="addCowModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <!-- Backdrop -->
     <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeModal('addCowModal')"></div>
@@ -225,7 +239,7 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
             </button>
         </div>
 
-        <form method="POST" action="<?= UrlHelper::url('cows') ?>" class="p-6 space-y-4">
+        <form method="POST" action="<?= UrlHelper::url('cows') ?>" class="p-6 space-y-4" enctype="multipart/form-data">
             <input type="hidden" name="action" value="add_cow">
 
             <div class="grid grid-cols-2 gap-4">
@@ -245,6 +259,13 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
                 <label class="block text-xs font-semibold text-farm-green-700 mb-1.5 uppercase tracking-wide">Notes</label>
                 <textarea name="notes" rows="2" placeholder="Optional notes..."
                           class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-farm-green-400 resize-none"></textarea>
+            </div>
+
+            
+            <div>
+                <label class="block text-xs font-semibold text-farm-green-700 mb-1.5 uppercase tracking-wide">Cow Image</label>
+                <input type="file" name="cow_image" accept="image/*"
+                       class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-farm-green-400">
             </div>
 
             <div class="flex gap-3 pt-2">
@@ -275,7 +296,7 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
             </button>
         </div>
 
-        <form method="POST" action="<?= UrlHelper::url('cows') ?>" class="p-6 space-y-4">
+        <form method="POST" action="<?= UrlHelper::url('cows') ?>" class="p-6 space-y-4" enctype="multipart/form-data">
             <input type="hidden" name="action"  value="update_cow">
             <input type="hidden" name="cow_id"  id="edit_cow_id">
 
@@ -336,6 +357,13 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
                 <label class="block text-xs font-semibold text-farm-green-700 mb-1.5 uppercase tracking-wide">Notes</label>
                 <textarea name="notes" id="edit_notes" rows="2"
                           class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-farm-green-400 resize-none"></textarea>
+            </div>
+
+            
+            <div>
+                <label class="block text-xs font-semibold text-farm-green-700 mb-1.5 uppercase tracking-wide">Cow Image</label>
+                <input type="file" name="cow_image" accept="image/*"
+                       class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-farm-green-400">
             </div>
 
             <div class="flex gap-3 pt-2">

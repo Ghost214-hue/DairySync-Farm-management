@@ -1,7 +1,7 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    header('Location: /farm-management/router.php/h3j5n8q1');
+    header('Location: /h3j5n8q1e81ea2b3a2d2bcf5ce5f54dc81c6d327031');
     exit();
 }
 

@@ -1,13 +1,8 @@
 <?php
-// /farm-management/backend/pages/cows.php
+// /backend/pages/cows.php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    header('Location: /farm-management/h3j5n8q1');
-    exit();
-}
+// Global authentication protection
+require_once __DIR__ . '/../middleware/Protector.php';
 
 require_once __DIR__ . '/../config/database.php';
 
@@ -71,7 +66,7 @@ function cowRedirect(string $type, string $message): void
 {
     $_SESSION['cow_' . $type] = $message;
 
-    header('Location: /farm-management/v4b7n1m8');
+    header('Location: /v4b7n1m88c9e3970c5d8e3f6fa7f7dd9ed3160b37b');
     exit();
 }
 
@@ -88,6 +83,7 @@ $cows_query = "
         weight_kg,
         status,
         notes,
+        image_path,
         created_at
     FROM cows
     WHERE user_id = ?
@@ -149,6 +145,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $notes = clean($_POST['notes'] ?? '');
 
+        file_put_contents(__DIR__ . '/../../logs/upload_debug.log', date('c') . " UPDATE FILES: " . print_r($_FILES, true) . "
+", FILE_APPEND);
+	$image_path = null;
+        if (isset($_FILES['cow_image']) && $_FILES['cow_image']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = __DIR__ . '/../../public/uploads/cows/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            $ext = pathinfo($_FILES['cow_image']['name'], PATHINFO_EXTENSION);
+            $filename = 'cow_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+            $destination = $upload_dir . $filename;
+            if (move_uploaded_file($_FILES['cow_image']['tmp_name'], $destination)) {
+                $image_path = '/public/uploads/cows/' . $filename;
+            }
+        }
+
         if (!$tag) {
             cowRedirect('error', 'Tag number is required.');
         }
@@ -201,13 +213,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 date_of_birth,
                 weight_kg,
                 status,
-                notes
+                notes,
+                image_path
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $insert_stmt->bind_param(
-            "iisssssdss",
+            "iisssssdsss",
             $user_id,
             $farm_id,
             $tag,
@@ -217,7 +230,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dob_value,
             $weight,
             $status,
-            $notes
+            $notes,
+            $image_path
         );
 
         $insert_stmt->execute();
@@ -248,6 +262,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = clean($_POST['status'] ?? 'Active');
 
         $notes = clean($_POST['notes'] ?? '');
+
+        file_put_contents(__DIR__ . '/../../logs/upload_debug.log', date('c') . " UPDATE FILES: " . print_r($_FILES, true) . "
+", FILE_APPEND);
+	$image_path = null;
+        if (isset($_FILES['cow_image']) && $_FILES['cow_image']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = __DIR__ . '/../../public/uploads/cows/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            $ext = pathinfo($_FILES['cow_image']['name'], PATHINFO_EXTENSION);
+            $filename = 'cow_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+            $destination = $upload_dir . $filename;
+            if (move_uploaded_file($_FILES['cow_image']['tmp_name'], $destination)) {
+                $image_path = '/public/uploads/cows/' . $filename;
+            }
+        }
+
         if (!$cow_id) {
             cowRedirect('error', 'Invalid cow ID.');
         }
@@ -280,13 +311,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 date_of_birth = ?,
                 weight_kg = ?,
                 status = ?,
-                notes = ?
+                notes = ?,
+                image_path = COALESCE(?, image_path)
             WHERE id = ?
             AND user_id = ?
         ");
 
         $update_stmt->bind_param(
-            "sssssdssii",
+            "sssssdsssii",
             $tag,
             $name,
             $breed,
@@ -295,6 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $weight,
             $status,
             $notes,
+            $image_path,
             $cow_id,
             $user_id
         );

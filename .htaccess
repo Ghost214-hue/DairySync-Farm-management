@@ -1,6 +1,17 @@
 Options -Indexes
 RewriteEngine On
-RewriteBase /farm-management/
+RewriteBase /
+
+# Security Headers
+Header set X-Content-Type-Options "nosniff"
+Header set X-XSS-Protection "1; mode=block"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdnjs.cloudflare.com cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com cdn.jsdelivr.net; font-src 'self' cdnjs.cloudflare.com; img-src 'self' data: https: http://localhost; connect-src 'self' https://cdn.jsdelivr.net; frame-ancestors 'self';"
+Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+# HTTPS Enforcement (uncomment in production)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # Handle root
 RewriteRule ^$ index.php [L]

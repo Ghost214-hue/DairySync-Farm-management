@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    header('Location: /farm-management/h3j5n8q1');
+    header('Location: /h3j5n8q1e81ea2b3a2d2bcf5ce5f54dc81c6d327031');
     exit();
 }
 
@@ -30,7 +30,7 @@ function clean($value) {
 function healthRedirect($type, $message) {
     $_SESSION['health_' . $type] = $message;
 
-    header('Location: /farm-management/w5c8p2k9');
+    header('Location: /w5c8p2k9f6aefe6e8cb4493b3edacf08050a6b55158');
     exit();
 }
 

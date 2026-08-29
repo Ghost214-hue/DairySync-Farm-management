@@ -18,7 +18,7 @@ unset($_SESSION['milk_error']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Milk Sales | MooManager</title>
-    <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
+    <link href="/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-[#f4f7f2] min-h-screen">
@@ -297,6 +297,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const calcSpan = document.getElementById('calculation');
 
     function updateCalculations() {
+        if (!litresInput || !priceSpan || !totalSpan || !calcSpan || !customerSelect) return;
+
         const litres = parseFloat(litresInput.value) || 0;
         const selectedOption = customerSelect.options[customerSelect.selectedIndex];
         const price = parseFloat(selectedOption.dataset.price) || 0;
@@ -307,9 +309,11 @@ document.addEventListener('DOMContentLoaded', function() {
         calcSpan.textContent = `${litres.toFixed(1)} L × KSh ${price.toFixed(2)} = KSh ${total.toFixed(2)}`;
     }
 
-    customerSelect.addEventListener('change', updateCalculations);
-    litresInput.addEventListener('input', updateCalculations);
-    updateCalculations();
+    if (customerSelect && litresInput) {
+        customerSelect.addEventListener('change', updateCalculations);
+        litresInput.addEventListener('input', updateCalculations);
+        updateCalculations();
+    }
 });
 </script>
 </body>

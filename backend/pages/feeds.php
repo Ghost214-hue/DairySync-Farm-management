@@ -1,20 +1,19 @@
 <?php
+// Global authentication protection
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/../middleware/Protector.php';
+
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../router/urlHelper.php';
 
 $conn = getDatabase();
 
-$user_id = $_SESSION['user_id'] ?? 0;
+$user_id = (int)$_SESSION['user_id'];
 
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
-    header('Location: /farm-management/h3j5n8q1');
-    exit();
-}
-
-// Get farm ID
+// Get user's first farm
 $farm_id = 0;
 $farm_stmt = $conn->prepare("SELECT id FROM farms WHERE user_id = ? LIMIT 1");
 $farm_stmt->bind_param("i", $user_id);
@@ -26,129 +25,7 @@ if ($farm = $farm_result->fetch_assoc()) {
 $farm_stmt->close();
 
 // ------------------------------------------------------------------
-// Handle POST with token validation
-// ------------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Token validation – prevent duplicate submission
-    if (!isset($_POST['form_token']) || $_POST['form_token'] !== ($_SESSION['feed_form_token'] ?? null)) {
-        $_SESSION['feed_error'] = "Invalid or duplicate submission. Please try again.";
-        header("Location: " . $_SERVER['REQUEST_URI']);
-        exit();
-    }
-    // Clear token immediately to prevent reuse
-    unset($_SESSION['feed_form_token']);
-
-    $action = $_POST['action'] ?? '';
-
-    if ($action === 'add_feed') {
-        $feed_name     = trim($_POST['feed_name'] ?? '');
-        $feed_type     = trim($_POST['feed_type'] ?? '');
-        $quantity_kg   = (float)($_POST['quantity_kg'] ?? 0);
-        $cost          = (float)($_POST['cost'] ?? 0);
-        $supplier      = trim($_POST['supplier'] ?? '');
-        $purchase_date = $_POST['purchase_date'] ?? date('Y-m-d');
-        $notes         = trim($_POST['notes'] ?? '');
-
-        if (empty($feed_name)) {
-            $_SESSION['feed_error'] = "Feed name is required.";
-        } else {
-            // Insert feed
-            $stmt = $conn->prepare("
-                INSERT INTO feed_management (
-                    user_id, farm_id, feed_name, feed_type,
-                    quantity_kg, cost, supplier, purchase_date, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-            $stmt->bind_param(
-                "iissddsss",
-                $user_id,
-                $farm_id,
-                $feed_name,
-                $feed_type,
-                $quantity_kg,
-                $cost,
-                $supplier,
-                $purchase_date,
-                $notes
-            );
-
-            if ($stmt->execute()) {
-                $feed_id = $conn->insert_id;
-
-                // --- automatically create expense ---
-                $expense_stmt = $conn->prepare("
-                    INSERT INTO expenses (
-                        user_id, farm_id, category, description,
-                        amount, expense_date, feed_id, source_type
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ");
-                $category    = 'Feed';
-                $description = $feed_name;
-                $amount      = $cost;
-                $expense_date = $purchase_date;
-                $source_type = 'feed';
-
-                $expense_stmt->bind_param(
-                    "iissdsis",
-                    $user_id,
-                    $farm_id,
-                    $category,
-                    $description,
-                    $amount,
-                    $expense_date,
-                    $feed_id,
-                    $source_type
-                );
-
-                if ($expense_stmt->execute()) {
-                    $_SESSION['feed_success'] = "Feed and related expense recorded successfully.";
-                } else {
-                    $_SESSION['feed_error'] = "Feed saved, but expense creation failed: " . $expense_stmt->error;
-                }
-                $expense_stmt->close();
-            } else {
-                $_SESSION['feed_error'] = "Failed to save feed.";
-            }
-            $stmt->close();
-        }
-
-        header("Location: " . $_SERVER['REQUEST_URI']);
-        exit;
-    }
-
-    if ($action === 'delete_feed') {
-        $feed_id = (int)($_POST['feed_id'] ?? 0);
-
-        // Delete linked expense
-        $delete_exp = $conn->prepare("
-            DELETE FROM expenses
-            WHERE feed_id = ? AND source_type = 'feed' AND user_id = ?
-        ");
-        $delete_exp->bind_param("ii", $feed_id, $user_id);
-        $delete_exp->execute();
-        $delete_exp->close();
-
-        // Delete feed
-        $stmt = $conn->prepare("
-            DELETE FROM feed_management
-            WHERE id = ? AND user_id = ?
-        ");
-        $stmt->bind_param("ii", $feed_id, $user_id);
-
-        if ($stmt->execute()) {
-            $_SESSION['feed_success'] = "Feed and its linked expense deleted successfully.";
-        } else {
-            $_SESSION['feed_error'] = "Unable to delete feed.";
-        }
-        $stmt->close();
-
-        header("Location: " . $_SERVER['REQUEST_URI']);
-        exit;
-    }
-}
-
-// ------------------------------------------------------------------
-// Generate a fresh token for the form (stored in session)
+// Generate a fresh token for forms
 // ------------------------------------------------------------------
 if (empty($_SESSION['feed_form_token'])) {
     $_SESSION['feed_form_token'] = bin2hex(random_bytes(32));
@@ -156,30 +33,124 @@ if (empty($_SESSION['feed_form_token'])) {
 $form_token = $_SESSION['feed_form_token'];
 
 // ------------------------------------------------------------------
-// Fetch all feeds
+// Validate form token on POST (prevents duplicate submissions)
+// ------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
+    (!isset($_POST['form_token']) || !hash_equals($form_token, (string)$_POST['form_token'])) &&
+    ($_POST['action'] ?? '') !== 'delete_feed') {
+    $_SESSION['feed_error'] = "Invalid or duplicate submission. Please try again.";
+    header("Location: " . $_SERVER['REQUEST_URI']);
+    exit();
+}
+
+// ------------------------------------------------------------------
+// Keep expenses table in sync with feed_management records so that
+// feed purchases also show up on the Income & Expenses page.
+// Idempotent: only feeds without a matching expense are inserted.
+// ------------------------------------------------------------------
+$sync_stmt = $conn->prepare("
+    INSERT INTO expenses (user_id, farm_id, category, description, amount, expense_date, feed_id, source_type)
+    SELECT f.user_id, f.farm_id, 'Feed', f.feed_name, f.cost, COALESCE(f.purchase_date, CURDATE()), f.id, 'feed'
+    FROM feed_management f
+    LEFT JOIN expenses e ON e.feed_id = f.id AND e.source_type = 'feed'
+    WHERE f.user_id = ? AND e.id IS NULL
+");
+$sync_stmt->bind_param("i", $user_id);
+$sync_stmt->execute();
+$sync_stmt->close();
+
+// ------------------------------------------------------------------
+// Handle Add Feed
+// ------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_feed') {
+
+    $feed_name     = trim($_POST['feed_name'] ?? '');
+    $feed_type     = trim($_POST['feed_type'] ?? '');
+    $quantity_kg   = (float)($_POST['quantity_kg'] ?? 0);
+    $cost          = (float)($_POST['cost'] ?? 0);
+    $supplier      = trim($_POST['supplier'] ?? '');
+    $purchase_date = $_POST['purchase_date'] ?? date('Y-m-d');
+    $notes         = trim($_POST['notes'] ?? '');
+
+    if ($feed_name === '') {
+        $_SESSION['feed_error'] = "Feed name is required.";
+    } else {
+        $stmt = $conn->prepare("
+            INSERT INTO feed_management
+                (user_id, farm_id, feed_name, feed_type, quantity_kg, cost, supplier, purchase_date, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->bind_param("iissddsss", $user_id, $farm_id, $feed_name, $feed_type, $quantity_kg, $cost, $supplier, $purchase_date, $notes);
+
+        if ($stmt->execute()) {
+            $feed_id = $stmt->insert_id;
+            $stmt->close();
+
+            // Mirror the purchase into expenses so it appears in the finance overview
+            $exp = $conn->prepare("
+                INSERT INTO expenses (user_id, farm_id, category, description, amount, expense_date, feed_id, source_type)
+                VALUES (?, ?, 'Feed', ?, ?, ?, ?, 'feed')
+            ");
+            $exp->bind_param("iisdsi", $user_id, $farm_id, $feed_name, $cost, $purchase_date, $feed_id);
+            $exp->execute();
+            $exp->close();
+
+            $_SESSION['feed_success'] = "Feed recorded successfully.";
+        } else {
+            $_SESSION['feed_error'] = "Failed to save feed.";
+        }
+    }
+
+    header("Location: " . $_SERVER['REQUEST_URI']);
+    exit();
+}
+
+// ------------------------------------------------------------------
+// Handle Delete Feed (also removes the mirrored expense)
+// ------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_feed') {
+
+    $feed_id = (int)($_POST['feed_id'] ?? 0);
+
+    if ($feed_id > 0) {
+        $stmt = $conn->prepare("DELETE FROM feed_management WHERE id = ? AND user_id = ?");
+        $stmt->bind_param("ii", $feed_id, $user_id);
+        $stmt->execute();
+        $stmt->close();
+
+        $exp = $conn->prepare("DELETE FROM expenses WHERE feed_id = ? AND source_type = 'feed' AND user_id = ?");
+        $exp->bind_param("ii", $feed_id, $user_id);
+        $exp->execute();
+        $exp->close();
+
+        $_SESSION['feed_success'] = "Feed record deleted.";
+    }
+
+    header("Location: " . $_SERVER['REQUEST_URI']);
+    exit();
+}
+
+// ------------------------------------------------------------------
+// Fetch feed records
 // ------------------------------------------------------------------
 $feeds = [];
-$stmt = $conn->prepare("
-    SELECT *
-    FROM feed_management
-    WHERE user_id = ?
-    ORDER BY purchase_date DESC, id DESC
-");
+$feed_query = "SELECT * FROM feed_management WHERE user_id = ? ORDER BY purchase_date DESC, id DESC";
+$stmt = $conn->prepare($feed_query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
+$feed_result = $stmt->get_result();
+while ($row = $feed_result->fetch_assoc()) {
     $feeds[] = $row;
 }
 $stmt->close();
 
 $total_feed_records = count($feeds);
-$total_feed_cost = 0;
-$total_feed_quantity = 0;
 
-foreach ($feeds as $feed) {
-    $total_feed_cost += (float)$feed['cost'];
-    $total_feed_quantity += (float)$feed['quantity_kg'];
+$total_feed_quantity = 0;
+$total_feed_cost     = 0;
+foreach ($feeds as $f) {
+    $total_feed_quantity += (float)$f['quantity_kg'];
+    $total_feed_cost     += (float)$f['cost'];
 }
 
 $conn->close();

@@ -1,104 +1,9 @@
 <?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header('Location: /farm-management/h3j5n8q1');
-    exit();
-}
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-require_once __DIR__ . '/../../backend/config/database.php';
-require_once __DIR__ . '/../../backend/helpers/SettingsHelper.php';
+require_once __DIR__ . '/../../backend/reports/milk_report.php';
 require_once __DIR__ . '/../components/sidebar.php';
-
-$conn = getDatabase();
-$user_id = (int)$_SESSION['user_id'];
-$settings = new SettingsHelper($user_id);
-$milk_price = $settings->getMilkPrice();
-
-// Filters
-$start_date = $_GET['start_date'] ?? date('Y-m-01');
-$end_date   = $_GET['end_date']   ?? date('Y-m-t');
-$cow_id     = isset($_GET['cow_id']) && $_GET['cow_id'] !== '' ? (int)$_GET['cow_id'] : null;
-
-$start_date = date('Y-m-d', strtotime($start_date));
-$end_date   = date('Y-m-d', strtotime($end_date));
-
-// ─────────────────────────────────────────────────────────────────────────
-// 1. Summary query (cards)
-// ─────────────────────────────────────────────────────────────────────────
-$summary_sql = "
-    SELECT 
-        SUM(morning_litres + evening_litres) AS total_milk
-    FROM milk_production
-    WHERE user_id = ? AND production_date BETWEEN ? AND ?
-";
-$params = [$user_id, $start_date, $end_date];
-$types = "iss";
-if ($cow_id) {
-    $summary_sql .= " AND cow_id = ?";
-    $params[] = $cow_id;
-    $types .= "i";
-}
-$stmt = $conn->prepare($summary_sql);
-$stmt->bind_param($types, ...$params);
-$stmt->execute();
-$summary = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-// Total sold milk from sales records in the same period
-$sold_sql = "SELECT SUM(litres) AS total_sold FROM income WHERE user_id = ? AND source = 'Milk Sales' AND income_date BETWEEN ? AND ?";
-$stmt = $conn->prepare($sold_sql);
-$stmt->bind_param("iss", $user_id, $start_date, $end_date);
-$stmt->execute();
-$sold_res = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-$total_sold = (float)($sold_res['total_sold'] ?? 0);
-$total_nrm = max(0, (float)($summary['total_milk'] ?? 0) - $total_sold);
-$summary['total_sold'] = $total_sold;
-$summary['total_nrm'] = $total_nrm;
-$summary['nrm_value'] = $total_nrm * $milk_price;
-
-// ─────────────────────────────────────────────────────────────────────────
-// 2. Detailed records (for table & export)
-// ─────────────────────────────────────────────────────────────────────────
-$detail_sql = "
-    SELECT 
-        mp.production_date,
-        c.cow_name,
-        mp.morning_litres,
-        mp.evening_litres,
-        mp.morning_litres + mp.evening_litres AS total_litres
-    FROM milk_production mp
-    LEFT JOIN cows c ON mp.cow_id = c.id
-    WHERE mp.user_id = ? AND mp.production_date BETWEEN ? AND ?
-";
-$params2 = [$user_id, $start_date, $end_date];
-$types2 = "iss";
-if ($cow_id) {
-    $detail_sql .= " AND mp.cow_id = ?";
-    $params2[] = $cow_id;
-    $types2 .= "i";
-}
-$detail_sql .= " ORDER BY mp.production_date DESC, mp.id DESC";
-$stmt = $conn->prepare($detail_sql);
-$stmt->bind_param($types2, ...$params2);
-$stmt->execute();
-$records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
-
-// ─────────────────────────────────────────────────────────────────────────
-// 3. Cow dropdown list
-// ─────────────────────────────────────────────────────────────────────────
-$cows = [];
-$cow_query = "SELECT id, cow_name FROM cows WHERE user_id = ? ORDER BY cow_name";
-$stmt = $conn->prepare($cow_query);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$cow_res = $stmt->get_result();
-while ($c = $cow_res->fetch_assoc()) {
-    $cows[] = $c;
-}
-$stmt->close();
-$conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -106,7 +11,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Milk Production Report | MooManager</title>
-    <link href="/farm-management/frontend/css/output.css" rel="stylesheet">
+    <link href="/frontend/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-[#f4f7f2] min-h-screen">
@@ -115,80 +20,376 @@ $conn->close();
     <main class="flex-1 min-w-0 p-4 pt-20 md:p-7 md:pt-7">
         <div class="mb-4">
             <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Milk Production Report</h1>
+            <p class="text-slate-500 mt-1">Daily farm performance, cow contributions and detailed records.</p>
         </div>
 
         <?php $active_tab = 'milk'; require __DIR__ . '/../components/report_tabs.php'; ?>
 
-        <!-- Filter Form -->
-        <form method="GET" class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-4 lg:items-end">
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-                <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" class="w-full border rounded-xl px-4 py-2">
+        <!-- SECTION A: Filters -->
+        <form method="GET" class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-4 lg:items-end">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
+                    <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" class="w-full border rounded-xl px-4 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">End Date</label>
+                    <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" class="w-full border rounded-xl px-4 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Select Cow</label>
+                    <select name="cow_id" class="w-full border rounded-xl px-4 py-2 min-w-[180px]">
+                        <option value="">All Cows</option>
+                        <?php foreach ($cows as $cow): ?>
+                            <option value="<?= $cow['id'] ?>" <?= ($cow_id == $cow['id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($cow['cow_name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="bg-emerald-700 text-white px-5 py-2 rounded-xl hover:bg-emerald-800">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                    <a href="?start_date=<?= date('Y-m-01') ?>&end_date=<?= date('Y-m-t') ?>" class="inline-block mt-2 lg:mt-0 lg:ml-2 text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl">Reset</a>
+                </div>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-                <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" class="w-full border rounded-xl px-4 py-2">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Select Cow</label>
-                <select name="cow_id" class="w-full border rounded-xl px-4 py-2 min-w-[180px]">
-                    <option value="">All Cows</option>
-                    <?php foreach ($cows as $cow): ?>
-                        <option value="<?= $cow['id'] ?>" <?= ($cow_id == $cow['id']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($cow['cow_name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div>
-                <button type="submit" class="bg-emerald-700 text-white px-5 py-2 rounded-xl hover:bg-emerald-800">
-                    <i class="fas fa-filter"></i> Apply
-                </button>
-                <a href="?start_date=<?= date('Y-m-01') ?>&end_date=<?= date('Y-m-t') ?>" class="inline-block mt-2 lg:mt-0 lg:ml-2 text-slate-500 hover:text-slate-700 px-3 py-2 rounded-xl">Reset</a>
+            <!-- Quick range filters -->
+            <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100">
+                <?php
+                $today = date('Y-m-d');
+                $quick = [
+                    'Today'        => [$today, $today],
+                    'Yesterday'    => [date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('-1 day'))],
+                    'This Week'    => [date('Y-m-d', strtotime('monday this week')), $today],
+                    'This Month'   => [date('Y-m-01'), date('Y-m-t')],
+                    'Last 30 Days' => [date('Y-m-d', strtotime('-29 days')), $today],
+                ];
+                foreach ($quick as $label => [$qs, $qe]):
+                    $active = ($start_date === $qs && $end_date === $qe); ?>
+                    <a href="?start_date=<?= $qs ?>&end_date=<?= $qe ?><?= $cow_id ? '&cow_id='.$cow_id : '' ?>"
+                       class="px-3 py-1.5 rounded-full text-sm border transition <?= $active ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100' ?>">
+                        <?= $label ?>
+                    </a>
+                <?php endforeach; ?>
             </div>
         </form>
 
-        <!-- Summary Cards (bigger, with icons and left border) -->
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- SECTION B: Overall Period Summary -->
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-4">
             <div class="bg-white rounded-2xl p-6 shadow-md border-l-8 border-emerald-500">
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-slate-500 text-sm uppercase tracking-wide">Total Milk</p>
+                    <p class="text-slate-500 text-sm uppercase tracking-wide">Total Milk Produced</p>
                     <i class="fas fa-glass-water text-emerald-600 text-2xl"></i>
                 </div>
-                <p class="text-4xl font-bold text-slate-800"><?= number_format($summary['total_milk'] ?? 0, 1) ?> <span class="text-lg font-normal">L</span></p>
+                <p class="text-4xl font-bold text-slate-800"><?= number_format($summary['total_milk'], 1) ?> <span class="text-lg font-normal">L</span></p>
+                <p class="text-sm text-slate-400 mt-1">Avg daily: <?= number_format($summary['avg_daily'], 1) ?> L</p>
             </div>
             <div class="bg-white rounded-2xl p-6 shadow-md border-l-8 border-blue-500">
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-slate-500 text-sm uppercase tracking-wide">Sold Milk</p>
-                    <i class="fas fa-coins text-blue-600 text-2xl"></i>
+                    <p class="text-slate-500 text-sm uppercase tracking-wide">Milk Sold / Delivered</p>
+                    <i class="fas fa-truck text-blue-600 text-2xl"></i>
                 </div>
-                <p class="text-4xl font-bold text-slate-800"><?= number_format($summary['total_sold'] ?? 0, 1) ?> <span class="text-lg font-normal">L</span></p>
+                <p class="text-4xl font-bold text-slate-800"><?= number_format($summary['total_sold'], 1) ?> <span class="text-lg font-normal">L</span></p>
+                <p class="text-sm text-slate-400 mt-1">Sales value: KSh <?= number_format($summary['sales_value'], 2) ?></p>
             </div>
             <div class="bg-white rounded-2xl p-6 shadow-md border-l-8 border-amber-500">
                 <div class="flex items-center justify-between mb-2">
                     <p class="text-slate-500 text-sm uppercase tracking-wide">Non‑Revenue Milk (NRM)</p>
                     <i class="fas fa-exclamation-triangle text-amber-600 text-2xl"></i>
                 </div>
-                <p class="text-4xl font-bold text-slate-800"><?= number_format($summary['total_nrm'] ?? 0, 1) ?> <span class="text-lg font-normal">L</span></p>
+                <p class="text-4xl font-bold text-slate-800"><?= number_format($summary['total_nrm'], 1) ?> <span class="text-lg font-normal">L</span></p>
+                <p class="text-sm text-slate-400 mt-1">NRM value: KSh <?= number_format($summary['nrm_value'], 2) ?></p>
             </div>
             <div class="bg-white rounded-2xl p-6 shadow-md border-l-8 border-purple-500">
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-slate-500 text-sm uppercase tracking-wide">NRM Value</p>
+                    <p class="text-slate-500 text-sm uppercase tracking-wide">Herd Insights</p>
                     <i class="fas fa-chart-line text-purple-600 text-2xl"></i>
                 </div>
-                <p class="text-4xl font-bold text-slate-800">KSh <?= number_format($summary['nrm_value'] ?? 0, 2) ?></p>
+                <p class="text-sm text-slate-600">Avg per cow: <strong><?= number_format($summary['avg_per_cow'], 1) ?> L</strong></p>
+                <?php if ($best_day): ?><p class="text-sm text-slate-600">Best day: <strong><?= date('M j', strtotime($best_day['date'])) ?></strong> (<?= number_format($best_day['produced'], 1) ?> L)</p><?php endif; ?>
+                <?php if ($worst_day): ?><p class="text-sm text-slate-600">Lowest day: <strong><?= date('M j', strtotime($worst_day['date'])) ?></strong> (<?= number_format($worst_day['produced'], 1) ?> L)</p><?php endif; ?>
+            </div>
+        </div>
+        <!-- SECTION C: Daily Dairy Performance (expandable per day) -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b bg-slate-50">
+                <h3 class="text-xl font-semibold">📅 Daily Dairy Performance</h3>
+                <p class="text-xs text-slate-400 mt-1">Reconciliation per day: Produced − Sold = Non‑Revenue Milk. Click a day to view the cow breakdown.</p>
+            </div>
+
+            <?php if (empty($daily)): ?>
+                <div class="py-10 text-center text-slate-400">No production records in the selected period.</div>
+            <?php else: ?>
+                <?php foreach ($daily as $d => $day): ?>
+                    <?php $uid = 'day_' . str_replace('-', '', $d); ?>
+                    <div class="border-t">
+                        <button type="button" onclick="toggleDay('<?= $uid ?>')"
+                                class="w-full text-left px-6 py-4 hover:bg-slate-50 transition flex flex-wrap items-center gap-x-6 gap-y-2">
+                            <div class="w-full sm:w-auto flex-1">
+                                <p class="font-bold text-slate-800"><i class="fas fa-calendar-day text-emerald-600 mr-2"></i><?= date('F j, Y', strtotime($d)) ?></p>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-sm flex-[2]">
+                                <span class="text-slate-500">Produced <strong class="text-emerald-700"><?= number_format($day['produced'], 1) ?> L</strong></span>
+                                <span class="text-slate-500">Sold <strong class="text-blue-700"><?= number_format($day['sold'], 1) ?> L</strong></span>
+                                <span class="text-slate-500">NRM <strong class="text-amber-600"><?= number_format($day['nrm'], 1) ?> L</strong></span>
+                                <span class="text-slate-500">Sales <strong class="text-slate-700">KSh <?= number_format($day['sales_value'], 0) ?></strong></span>
+                            </div>
+                            <span class="text-emerald-700 text-sm whitespace-nowrap"><i id="icon_<?= $uid ?>" class="fas fa-chevron-down transition-transform"></i> Cow Breakdown</span>
+                        </button>
+
+                        <div id="<?= $uid ?>" class="hidden px-6 pb-5">
+                            <div class="bg-slate-50 rounded-xl p-4 mb-3 grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+                                <div><p class="text-xs text-slate-400 uppercase">Produced</p><p class="text-lg font-bold text-emerald-700"><?= number_format($day['produced'], 1) ?> L</p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">Sold</p><p class="text-lg font-bold text-blue-700"><?= number_format($day['sold'], 1) ?> L</p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">NRM</p><p class="text-lg font-bold text-amber-600"><?= number_format($day['nrm'], 1) ?> L</p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">Sales Value</p><p class="text-lg font-bold text-slate-700">KSh <?= number_format($day['sales_value'], 2) ?></p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">NRM Value</p><p class="text-lg font-bold text-amber-700">KSh <?= number_format($day['nrm_value'], 2) ?></p></div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="bg-slate-100 text-slate-600"><tr>
+                                        <th class="px-4 py-2 text-left">Cow</th>
+                                        <th class="px-4 py-2 text-right">Morning (L)</th>
+                                        <th class="px-4 py-2 text-right">Evening (L)</th>
+                                        <th class="px-4 py-2 text-right">Total (L)</th>
+                                    </tr></thead>
+                                    <tbody>
+                                        <?php foreach ($day['cows'] as $c): ?>
+                                            <tr class="border-t">
+                                                <td class="px-4 py-2 font-medium">🐄 <?= htmlspecialchars($c['cow_name']) ?></td>
+                                                <td class="px-4 py-2 text-right"><?= number_format($c['morning'], 1) ?></td>
+                                                <td class="px-4 py-2 text-right"><?= number_format($c['evening'], 1) ?></td>
+                                                <td class="px-4 py-2 text-right font-semibold text-emerald-700"><?= number_format($c['total'], 1) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        <tr class="border-t bg-slate-50 font-bold">
+                                            <td class="px-4 py-2">Total</td>
+                                            <td class="px-4 py-2 text-right"><?= number_format(array_sum(array_column($day['cows'], 'morning')), 1) ?></td>
+                                            <td class="px-4 py-2 text-right"><?= number_format(array_sum(array_column($day['cows'], 'evening')), 1) ?></td>
+                                            <td class="px-4 py-2 text-right text-emerald-700"><?= number_format($day['produced'], 1) ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <!-- SECTION C: Daily Dairy Performance (expandable per day) -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b bg-slate-50 flex justify-between items-center flex-wrap gap-3">
+                <div>
+                    <h3 class="text-xl font-semibold">📅 Daily Dairy Performance</h3>
+                    <p class="text-xs text-slate-400 mt-1">Reconciliation per day: Produced − Sold = Non‑Revenue Milk. Click a day to view the cow breakdown.</p>
+                </div>
+            </div>
+
+
+        <!-- SECTION D: Cow Performance Analytics -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b bg-slate-50 flex justify-between items-center flex-wrap gap-3">
+                <div>
+                    <h3 class="text-xl font-semibold">🐄 Cow Performance</h3>
+                    <p class="text-xs text-slate-400 mt-1">Aggregated per cow for the selected period, ranked by total production.</p>
+                </div>
+                <button onclick="exportToExcel('cowTable', 'Milk_Cow_Performance_<?= date('Y-m-d') ?>')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm transition">
+                    <i class="fas fa-file-excel mr-1"></i> Export Cow Performance
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table id="cowTable" class="w-full min-w-[760px]">
+                    <thead class="bg-slate-100"><tr class="text-left text-sm text-slate-600">
+                        <th class="px-4 py-3">Cow</th>
+                        <th class="px-4 py-3 text-right">Total (L)</th>
+                        <th class="px-4 py-3 text-right">Morning (L)</th>
+                        <th class="px-4 py-3 text-right">Evening (L)</th>
+                        <th class="px-4 py-3 text-right">Days Recorded</th>
+                        <th class="px-4 py-3 text-right">Avg / Day</th>
+                        <th class="px-4 py-3 text-right">Best Day (L)</th>
+                        <th class="px-4 py-3 text-right">Herd Contribution</th>
+                    </tr></thead>
+                    <tbody>
+                        <?php if (empty($cow_agg)): ?>
+                            <tr><td colspan="8" class="text-center py-10 text-slate-400">No cow production in the selected period.</td></tr>
+                        <?php else: foreach ($cow_agg as $i => $c): ?>
+                            <tr class="border-t hover:bg-slate-50">
+                                <td class="px-4 py-3 font-medium">
+                                    <?= htmlspecialchars($c['cow_name']) ?>
+                                    <?php if ($i === 0): ?><span class="ml-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">🏆 Top</span><?php endif; ?>
+                                    <?php if ($i === count($cow_agg) - 1 && count($cow_agg) > 1): ?><span class="ml-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Lowest</span><?php endif; ?>
+                                </td>
+                                <td class="px-4 py-3 text-right font-semibold"><?= number_format($c['total'], 1) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['morning'], 1) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['evening'], 1) ?></td>
+                                <td class="px-4 py-3 text-right"><?= (int)$c['days'] ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['avg_per_day'], 2) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['best'], 1) ?></td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="inline-flex items-center gap-2">
+                                        <span class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden inline-block">
+                                            <span class="block h-full bg-emerald-500" style="width: <?= min(100, round($c['contribution_pct'])) ?>%"></span>
+                                        </span>
+                                        <?= number_format($c['contribution_pct'], 1) ?>%
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+            <?php if (empty($daily)): ?>
+                <div class="py-10 text-center text-slate-400">No production records in the selected period.</div>
+            <?php else: ?>
+                <?php foreach ($daily as $d => $day): ?>
+                    <?php $uid = 'day_' . str_replace('-', '', $d); ?>
+                    <div class="border-t">
+                        <!-- Day header (clickable) -->
+                        <button type="button" onclick="toggleDay('<?= $uid ?>')"
+                                class="w-full text-left px-6 py-4 hover:bg-slate-50 transition flex flex-wrap items-center gap-x-6 gap-y-2">
+                            <div class="w-full sm:w-auto flex-1">
+                                <p class="font-bold text-slate-800"><i class="fas fa-calendar-day text-emerald-600 mr-2"></i><?= date('F j, Y', strtotime($d)) ?></p>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-sm flex-[2]">
+                                <span class="text-slate-500">Produced <strong class="text-emerald-700"><?= number_format($day['produced'], 1) ?> L</strong></span>
+                                <span class="text-slate-500">Sold <strong class="text-blue-700"><?= number_format($day['sold'], 1) ?> L</strong></span>
+                                <span class="text-slate-500">NRM <strong class="text-amber-600"><?= number_format($day['nrm'], 1) ?> L</strong></span>
+                                <span class="text-slate-500">Sales <strong class="text-slate-700">KSh <?= number_format($day['sales_value'], 0) ?></strong></span>
+                            </div>
+                            <span class="text-emerald-700 text-sm whitespace-nowrap"><i id="icon_<?= $uid ?>" class="fas fa-chevron-down transition-transform"></i> Cow Breakdown</span>
+                        </button>
+
+                        <!-- Expandable day detail -->
+                        <div id="<?= $uid ?>" class="hidden px-6 pb-5">
+                            <div class="bg-slate-50 rounded-xl p-4 mb-3 grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+                                <div><p class="text-xs text-slate-400 uppercase">Produced</p><p class="text-lg font-bold text-emerald-700"><?= number_format($day['produced'], 1) ?> L</p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">Sold</p><p class="text-lg font-bold text-blue-700"><?= number_format($day['sold'], 1) ?> L</p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">NRM</p><p class="text-lg font-bold text-amber-600"><?= number_format($day['nrm'], 1) ?> L</p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">Sales Value</p><p class="text-lg font-bold text-slate-700">KSh <?= number_format($day['sales_value'], 2) ?></p></div>
+                                <div><p class="text-xs text-slate-400 uppercase">NRM Value</p><p class="text-lg font-bold text-amber-700">KSh <?= number_format($day['nrm_value'], 2) ?></p></div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="bg-slate-100 text-slate-600"><tr>
+                                        <th class="px-4 py-2 text-left">Cow</th>
+                                        <th class="px-4 py-2 text-right">Morning (L)</th>
+                                        <th class="px-4 py-2 text-right">Evening (L)</th>
+                                        <th class="px-4 py-2 text-right">Total (L)</th>
+                                    </tr></thead>
+                                    <tbody>
+                                        <?php foreach ($day['cows'] as $c): ?>
+                                            <tr class="border-t">
+                                                <td class="px-4 py-2 font-medium">🐄 <?= htmlspecialchars($c['cow_name']) ?></td>
+                                                <td class="px-4 py-2 text-right"><?= number_format($c['morning'], 1) ?></td>
+                                                <td class="px-4 py-2 text-right"><?= number_format($c['evening'], 1) ?></td>
+                                                <td class="px-4 py-2 text-right font-semibold text-emerald-700"><?= number_format($c['total'], 1) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        <tr class="border-t bg-slate-50 font-bold">
+                                            <td class="px-4 py-2">Total</td>
+                                            <td class="px-4 py-2 text-right"><?= number_format(array_sum(array_column($day['cows'], 'morning')), 1) ?></td>
+                                            <td class="px-4 py-2 text-right"><?= number_format(array_sum(array_column($day['cows'], 'evening')), 1) ?></td>
+                                            <td class="px-4 py-2 text-right text-emerald-700"><?= number_format($day['produced'], 1) ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <!-- SECTION D: Cow Performance Analytics -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b bg-slate-50 flex justify-between items-center flex-wrap gap-3">
+                <div>
+                    <h3 class="text-xl font-semibold">🐄 Cow Performance</h3>
+                    <p class="text-xs text-slate-400 mt-1">Aggregated per cow for the selected period, ranked by total production.</p>
+                </div>
+                <button onclick="exportToExcel('cowTable', 'Milk_Cow_Performance_<?= date('Y-m-d') ?>')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm transition">
+                    <i class="fas fa-file-excel mr-1"></i> Export Cow Performance
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table id="cowTable" class="w-full min-w-[760px]">
+                    <thead class="bg-slate-100"><tr class="text-left text-sm text-slate-600">
+                        <th class="px-4 py-3">Cow</th>
+                        <th class="px-4 py-3 text-right">Total (L)</th>
+                        <th class="px-4 py-3 text-right">Morning (L)</th>
+                        <th class="px-4 py-3 text-right">Evening (L)</th>
+                        <th class="px-4 py-3 text-right">Days Recorded</th>
+                        <th class="px-4 py-3 text-right">Avg / Day</th>
+                        <th class="px-4 py-3 text-right">Best Day (L)</th>
+                        <th class="px-4 py-3 text-right">Herd Contribution</th>
+                    </tr></thead>
+                    <tbody>
+                        <?php if (empty($cow_agg)): ?>
+                            <tr><td colspan="8" class="text-center py-10 text-slate-400">No cow production in the selected period.</td></tr>
+                        <?php else: foreach ($cow_agg as $i => $c): ?>
+                            <tr class="border-t hover:bg-slate-50">
+                                <td class="px-4 py-3 font-medium">
+                                    <?= htmlspecialchars($c['cow_name']) ?>
+                                    <?php if ($i === 0): ?><span class="ml-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">🏆 Top</span><?php endif; ?>
+                                    <?php if ($i === count($cow_agg) - 1 && count($cow_agg) > 1): ?><span class="ml-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Lowest</span><?php endif; ?>
+                                </td>
+                                <td class="px-4 py-3 text-right font-semibold"><?= number_format($c['total'], 1) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['morning'], 1) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['evening'], 1) ?></td>
+                                <td class="px-4 py-3 text-right"><?= (int)$c['days'] ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['avg_per_day'], 2) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($c['best'], 1) ?></td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="inline-flex items-center gap-2">
+                                        <span class="w-16 h-2 bg-slate-100 rounded-full overflow-hidden inline-block">
+                                            <span class="block h-full bg-emerald-500" style="width: <?= min(100, round($c['contribution_pct'])) ?>%"></span>
+                                        </span>
+                                        <?= number_format($c['contribution_pct'], 1) ?>%
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Detailed Table with Export Button -->
+        <!-- SECTION E: Detailed Milk Records (existing functionality preserved) -->
         <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b bg-slate-50 flex justify-between items-center flex-wrap gap-3">
                 <h3 class="text-xl font-semibold">📋 Milk Records (Detailed)</h3>
-                <button onclick="exportToExcel('milkTable', 'Milk_Production_Report_<?= date('Y-m-d') ?>')" 
-                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm transition">
-                    <i class="fas fa-file-excel mr-1"></i> Export to Excel
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="exportToExcel('dailyTable', 'Milk_Daily_Summary_<?= date('Y-m-d') ?>')"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm transition">
+                        <i class="fas fa-file-excel mr-1"></i> Export Daily Summary
+                    </button>
+                    <button onclick="exportToExcel('milkTable', 'Milk_Detailed_Records_<?= date('Y-m-d') ?>')"
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm transition">
+                        <i class="fas fa-file-excel mr-1"></i> Export Detailed Records
+                    </button>
+                </div>
             </div>
+
+            <!-- Hidden daily summary table used only for the Daily Summary export -->
+            <table id="dailyTable" class="hidden">
+                <thead><tr><th>Date</th><th>Produced (L)</th><th>Sold (L)</th><th>NRM (L)</th><th>Sales Value (KSh)</th><th>NRM Value (KSh)</th></tr></thead>
+                <tbody>
+                    <?php foreach ($daily as $day): ?>
+                        <tr>
+                            <td><?= date('Y-m-d', strtotime($day['date'])) ?></td>
+                            <td><?= number_format($day['produced'], 1) ?></td>
+                            <td><?= number_format($day['sold'], 1) ?></td>
+                            <td><?= number_format($day['nrm'], 1) ?></td>
+                            <td><?= number_format($day['sales_value'], 2) ?></td>
+                            <td><?= number_format($day['nrm_value'], 2) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
             <div class="overflow-x-auto">
                 <table id="milkTable" class="w-full min-w-[680px]">
                     <thead class="bg-slate-100">
@@ -202,7 +403,7 @@ $conn->close();
                     </thead>
                     <tbody>
                         <?php if (empty($records)): ?>
-                            <tr><td colspan="8" class="text-center py-10 text-slate-400">No records found in selected period.</td></tr>
+                            <tr><td colspan="5" class="text-center py-10 text-slate-400">No records found in selected period.</td></tr>
                         <?php else: ?>
                             <?php foreach ($records as $r): ?>
                                 <tr class="border-t hover:bg-slate-50">
@@ -221,8 +422,15 @@ $conn->close();
     </main>
 </div>
 
-<!-- Export to CSV (Excel) Function -->
+<!-- Export to CSV (Excel) + daily section toggle -->
 <script>
+function toggleDay(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById('icon_' + id);
+    el.classList.toggle('hidden');
+    icon.style.transform = el.classList.contains('hidden') ? '' : 'rotate(180deg)';
+}
+
 function exportToExcel(tableId, filename) {
     const table = document.getElementById(tableId);
     const rows = table.querySelectorAll('tr');
@@ -231,9 +439,7 @@ function exportToExcel(tableId, filename) {
         const cells = row.querySelectorAll('th, td');
         const rowData = Array.from(cells).map(cell => {
             let text = cell.innerText.trim();
-            // Remove any leftover HTML tags or special characters
-            text = text.replace(/[^a-zA-Z0-9\s\-\.,]/g, '');
-            // Wrap in quotes and escape quotes
+            text = text.replace(/[^a-zA-Z0-9\s\-\.,%]/g, '');
             return `"${text.replace(/"/g, '""')}"`;
         }).join(',');
         csv.push(rowData);

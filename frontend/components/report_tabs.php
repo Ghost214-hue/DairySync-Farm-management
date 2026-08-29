@@ -1,5 +1,5 @@
 <?php
-// /farm-management/frontend/components/report_tabs.php
+// /frontend/components/report_tabs.php
 require_once dirname(__DIR__, 2) . '/router/urlHelper.php';
 $active_tab = $active_tab ?? 'milk'; // 'milk' or 'income'
 ?>
