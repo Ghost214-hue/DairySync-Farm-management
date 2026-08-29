@@ -128,7 +128,11 @@ $stmt->close();
 // Generate shareable link (only for authenticated users viewing their own cows)
 if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
     $share_token = base64_encode($cow_id . ':' . $user_id . ':' . time());
-    $share_link = UrlHelper::url('cow_profile') . '?id=' . $cow_id . '&share=' . $share_token;
+    // Build an ABSOLUTE URL - QR codes and phone scanners need scheme + host,
+    // a relative path would resolve to file:/// on a scanned device.
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $share_link = $scheme . '://' . $host . UrlHelper::url('cow_profile') . '?id=' . $cow_id . '&share=' . $share_token;
 } else {
     $share_link = '';
 }

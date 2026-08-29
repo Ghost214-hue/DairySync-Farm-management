@@ -232,7 +232,8 @@ require_once __DIR__ . '/../../router/urlHelper.php';
 
 <script>
 // Generate QR Code + wire up the clickable share link
-const shareUrl = "<?= htmlspecialchars($share_link) ?>";
+// json_encode() keeps the raw & intact (htmlspecialchars would corrupt it to &amp;)
+const shareUrl = <?= json_encode($share_link) ?>;
 
 // QR code is an image, not a hyperlink — so we anchor it manually
 const qrLink = document.getElementById('qrcodeLink');
