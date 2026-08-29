@@ -85,6 +85,28 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
+// Get recent milk records (last 60 days) for the Recent Milk Records table
+$recent_milk = [];
+$recent_query = "SELECT 
+                    production_date,
+                    morning_litres,
+                    evening_litres,
+                    (morning_litres + evening_litres) AS total_litres,
+                    notes
+                FROM milk_production 
+                WHERE cow_id = ? AND user_id = ?
+                  AND production_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+                ORDER BY production_date DESC
+                LIMIT 60";
+$stmt = $conn->prepare($recent_query);
+$stmt->bind_param("ii", $cow_id, $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $recent_milk[] = $row;
+}
+$stmt->close();
+
 $total_milk = array_sum(array_column($milk_summary, 'total_litres'));
 $avg_daily = count($milk_summary) > 0 ? $total_milk / count($milk_summary) : 0;
 

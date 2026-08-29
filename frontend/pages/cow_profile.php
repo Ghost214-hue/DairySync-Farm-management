@@ -144,8 +144,47 @@ require_once __DIR__ . '/../../router/urlHelper.php';
 
         <!-- Recent Milk Production Records (Last 2 Months) -->
         <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-white/60 p-6 mb-6">
-            <h2 class="text-lg font-bold text-farm-green-900 mb-4">Recent Milk Records</h2>
-            <p class="text-farm-green-500 text-center py-8">Recent milk records will appear here</p>
+            <div class="flex justify-between items-center flex-wrap gap-2 mb-4">
+                <h2 class="text-lg font-bold text-farm-green-900">Recent Milk Records</h2>
+                <span class="text-xs text-farm-green-500">Last 60 days</span>
+            </div>
+            <?php if (empty($recent_milk)): ?>
+                <p class="text-farm-green-500 text-center py-8">No milk records in the last 60 days for this cow.</p>
+            <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-farm-green-50 text-farm-green-700 text-xs uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Date</th>
+                            <th class="px-4 py-3 text-right">Morning (L)</th>
+                            <th class="px-4 py-3 text-right">Evening (L)</th>
+                            <th class="px-4 py-3 text-right">Total (L)</th>
+                            <th class="px-4 py-3 text-left">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-farm-green-50">
+                        <?php foreach ($recent_milk as $rec): ?>
+                            <tr class="hover:bg-farm-green-50/50 transition">
+                                <td class="px-4 py-3 text-farm-green-800"><?= date('M j, Y', strtotime($rec['production_date'])) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($rec['morning_litres'], 1) ?></td>
+                                <td class="px-4 py-3 text-right"><?= number_format($rec['evening_litres'], 1) ?></td>
+                                <td class="px-4 py-3 text-right font-semibold text-emerald-700"><?= number_format($rec['total_litres'], 1) ?></td>
+                                <td class="px-4 py-3 text-farm-green-600 text-xs"><?= $rec['notes'] ? htmlspecialchars($rec['notes']) : '—' ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-farm-green-50 font-bold text-farm-green-900">
+                            <td class="px-4 py-3">Total (<?= count($recent_milk) ?> days)</td>
+                            <td class="px-4 py-3 text-right"><?= number_format(array_sum(array_column($recent_milk, 'morning_litres')), 1) ?></td>
+                            <td class="px-4 py-3 text-right"><?= number_format(array_sum(array_column($recent_milk, 'evening_litres')), 1) ?></td>
+                            <td class="px-4 py-3 text-right text-emerald-700"><?= number_format(array_sum(array_column($recent_milk, 'total_litres')), 1) ?></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Health Records -->
