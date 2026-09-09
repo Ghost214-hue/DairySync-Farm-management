@@ -164,6 +164,7 @@ unset($_SESSION['collection_error']);
         </div>
         <form method="POST" action="<?= UrlHelper::url('collections') ?>" class="space-y-5" id="paymentForm">
             <input type="hidden" name="action" value="record_payment">
+            <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
 
             <!-- Customer Selection -->
             <div>

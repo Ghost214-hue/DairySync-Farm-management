@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/SettingsHelper.php';
 require_once __DIR__ . '/../helpers/FarmContext.php';
+require_once __DIR__ . '/../helpers/Csrf.php';
 
 $conn = getDatabase();
 
@@ -18,9 +19,20 @@ $default_milk_price = $settings->getMilkPrice();
 // Get user's first farm
 $farm_id = FarmContext::currentFarmId() ?? 0;
 
+$form_token = Csrf::formTokenVar();
+
 // ------------------------------------------------------------------
 // Handle milk price update (from income page)
 // ------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // CSRF: reject state-changing requests that lack a valid token.
+    if (!Csrf::validate($_POST['form_token'] ?? null)) {
+        $_SESSION['income_error'] = 'Your session expired. Please try again.';
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_milk_price') {
     $new_price = (float)($_POST['milk_price'] ?? 0);
     if ($new_price > 0) {

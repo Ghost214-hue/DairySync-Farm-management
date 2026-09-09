@@ -241,6 +241,7 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
 
         <form method="POST" action="<?= UrlHelper::url('cows') ?>" class="p-6 space-y-4" enctype="multipart/form-data">
             <input type="hidden" name="action" value="add_cow">
+            <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
 
             <div class="grid grid-cols-2 gap-4">
                 <?php renderField('tag_number', 'Tag Number *', 'text', 'e.g. T001') ?>
@@ -299,6 +300,7 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
         <form method="POST" action="<?= UrlHelper::url('cows') ?>" class="p-6 space-y-4" enctype="multipart/form-data">
             <input type="hidden" name="action"  value="update_cow">
             <input type="hidden" name="cow_id"  id="edit_cow_id">
+            <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -394,6 +396,7 @@ $error_msg   = $_SESSION['cow_error']   ?? null; unset($_SESSION['cow_error']);
         <form method="POST" action="<?= UrlHelper::url('cows') ?>">
             <input type="hidden" name="action" value="delete_cow">
             <input type="hidden" name="cow_id" id="deleteCowId">
+            <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
             <div class="flex gap-3">
                 <button type="button" onclick="closeModal('deleteModal')"
                         class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition">
