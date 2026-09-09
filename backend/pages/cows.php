@@ -5,31 +5,17 @@
 require_once __DIR__ . '/../middleware/Protector.php';
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/FarmContext.php';
+require_once __DIR__ . '/../helpers/Csrf.php';
 
 $conn = getDatabase();
 
 $user_id = (int) $_SESSION['user_id'];
 
-$farm_stmt = $conn->prepare("
-    SELECT id
-    FROM farms
-    WHERE user_id = ?
-    LIMIT 1
-");
+// Active farm via central FarmContext (single source of truth)
+$farm_id = FarmContext::currentFarmIdOrFail();
 
-$farm_stmt->bind_param("i", $user_id);
-$farm_stmt->execute();
-
-$farm_result = $farm_stmt->get_result();
-$farm = $farm_result->fetch_assoc();
-
-if (!$farm) {
-    die('No farm found for this user.');
-}
-
-$farm_id = (int) $farm['id'];
-
-$farm_stmt->close();
+$form_token = Csrf::formTokenVar();
 
 const ALLOWED_BREEDS = [
     'Holstein',
@@ -122,6 +108,11 @@ foreach ($cows as $cow) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // CSRF: reject state-changing requests that lack a valid token.
+    if (!Csrf::validate($_POST['form_token'] ?? null)) {
+        cowRedirect('error', 'Your session expired. Please try again.');
+    }
 
     $action = clean($_POST['action'] ?? '');
 

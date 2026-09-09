@@ -3,6 +3,8 @@
 require_once __DIR__ . '/../middleware/Protector.php';
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/FarmContext.php';
+require_once __DIR__ . '/../helpers/Csrf.php';
 require_once __DIR__ . '/../../router/urlHelper.php';
 
 $conn = getDatabase();
@@ -10,21 +12,20 @@ $conn = getDatabase();
 $user_id = (int)$_SESSION['user_id'];
 
 // Get user's first farm
-$farm_id = 0;
-$farm_query = "SELECT id FROM farms WHERE user_id = ? LIMIT 1";
-$farm_stmt = $conn->prepare($farm_query);
-$farm_stmt->bind_param("i", $user_id);
-$farm_stmt->execute();
-$farm_result = $farm_stmt->get_result();
-if ($farm = $farm_result->fetch_assoc()) {
-    $farm_id = (int)$farm['id'];
-}
-$farm_stmt->close();
+$farm_id = FarmContext::currentFarmId() ?? 0;
+
+$form_token = Csrf::formTokenVar();
 
 // ------------------------------------------------------------------
 // Handle Record Payment
 // ------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'record_payment') {
+    // CSRF: reject state-changing requests that lack a valid token.
+    if (!Csrf::validate($_POST['form_token'] ?? null)) {
+        $_SESSION['collection_error'] = 'Your session expired. Please try again.';
+        header("Location: " . UrlHelper::url('collections'));
+        exit();
+    }
     $customer_id = (int)($_POST['customer_id'] ?? 0);
     $amount_paid = (float)($_POST['amount_paid'] ?? 0);
     $payment_date = $_POST['payment_date'] ?? date('Y-m-d');

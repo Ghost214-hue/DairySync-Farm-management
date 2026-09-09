@@ -282,6 +282,7 @@ unset(
         </div>
         <form method="POST" action="">
             <input type="hidden" name="action" value="add_income">
+            <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Source</label>
@@ -323,6 +324,7 @@ unset(
         </div>
         <form method="POST" action="">
             <input type="hidden" name="action" value="add_expense">
+            <input type="hidden" name="form_token" value="<?= htmlspecialchars($form_token) ?>">
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Category</label>

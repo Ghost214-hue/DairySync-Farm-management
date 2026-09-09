@@ -320,6 +320,31 @@ function renderSidebar() {
                 <span>Settings</span>
             </a>
 
+            <!-- Farm Switcher (only when user owns >1 farm) -->
+            <?php
+                require_once dirname(__DIR__, 2) . '/backend/helpers/FarmContext.php';
+                if (isset($_SESSION['user_id'])) {
+                    $fc_farms = FarmContext::farmsForUser((int)$_SESSION['user_id']);
+                    if (count($fc_farms) > 1) {
+                        $fc_active = FarmContext::currentFarmId();
+            ?>
+            <div class="px-4 pb-1 pt-3 text-[11px] uppercase tracking-wider text-emerald-200/50 mt-2">Active Farm</div>
+            <form method="POST" action="" class="px-4 pb-2">
+                <select name="farm_id" onchange="this.form.submit()"
+                        class="w-full text-sm bg-white/10 border border-emerald-500/25 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                    <?php foreach ($fc_farms as $fc): ?>
+                        <option value="<?= (int)$fc['id'] ?>" <?= ($fc_active === (int)$fc['id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($fc['farm_name'] ?? ('Farm #' . (int)$fc['id'])) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <input type="hidden" name="switch_farm" value="1">
+            </form>
+            <?php
+                    }
+                }
+            ?>
+
             <!-- Logout -->
             <a href="<?= UrlHelper::url('logout') ?>" class="<?= $nav_class('logout') ?>">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
